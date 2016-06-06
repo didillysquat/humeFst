@@ -1,0 +1,60 @@
+<table>
+<tr style='font-weight:bold; font-size:150%'>
+<td colspan="4" >
+1.0 Type Characterisation
+</td>
+</tr>
+{% for row, style in outPut %}
+{% if row != None %}
+	{% if style == 'cladeHeader' %}
+	<tr style='font-weight:bold; font-size:120%'>
+			<td colspan="4">{{row}}</td>
+	</tr>
+	{% elif style == 'majHeader' %}
+	<tr style='font-weight:bold'>
+			<td colspan="4">{{row}}</td>
+	</tr>
+	{% elif style == 'subHeader' %}
+	<tr style='font-weight:bold'>
+		{% for cell in row %}
+			{% if cell != None %}
+			<td>{{cell}}</td>
+			{% elif cell == None %}
+			<td></td>
+			{% endif %}
+		{% endfor %}
+	</tr>
+	{% elif style == 'typeInfo' %}
+	<tr>
+		{% for cell in row %}
+			{% if cell != None %}
+			<td>{{cell}}</td>
+			{% elif cell == None %}
+			<td></td>
+			{% endif %}
+		{% endfor %}
+	</tr>
+	{% elif style == 'majPlot' %}
+	<tr>
+		<td colspan="2">
+			<img src='{{row}}' alt='Insufficient samples to warrant plot'>
+		</td>
+	</tr>
+	{% elif style == 'plotError' %}
+	<tr>
+		<td><img src='{{row}}' alt='.jpg not found' ></td><td>Insufficient samples to warrant plot</td>
+	</tr>
+	{% elif style == 'cladalPlot' %}
+	<tr>
+		{% for cell in row %}
+			<td colspan="2">
+				<img src='{{cell}}' alt='Insufficient samples to warrant plot'>
+			</td>
+		{% endfor %}
+	</tr>
+	{% endif %}
+{% else %}
+	<tr><td><br/></td></tr>
+{% endif %}
+{% endfor %}
+</table>

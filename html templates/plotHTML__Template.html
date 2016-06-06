@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SymbioType Output</title>
+</head>
+<body>
+<table>
+	{% for title, plot, other in listOfTruples %}
+	<tr><td>{{title}}</td></tr>
+	<tr><td><img src="{{plot}}" alt="some_text"></tr></td>
+	{% endfor %}
+</table>
+</body>
+</html>
