@@ -17,7 +17,9 @@ import config
 from jinja2 import Environment, FileSystemLoader
 from subprocess import call
 import time
-
+import shutil
+import sys
+import zipfile
 
 ## THESE ARE ALL THE SUBFUNCTIONS ##
 # read a file line by line with each line containing multiple items separated by a ','
@@ -298,6 +300,7 @@ def createFstColDists(cladeCollectionList, masterSeqDistancesDict):
     return FstColDist
 
 def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2's per clade, number of clades, number of codoms, number of predefined types
+    print('Running writeTypeBasedOutput()')
 
     # THis had a problem in that it might show when there is increased support for a type but it doesn't work out when support has decreased for a type. For example, a lot of th
     # samples that had initial type A1 will have alternative final types. so the final support for A1 will drop when there is an alternative
@@ -424,7 +427,7 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
                     outPutDoc.append(([ None, None, INTRA], 'typeInfo'))
             outPutDoc.extend([(None, 'blankRow'), (None, 'blankRow'), (None, 'blankRow'), (None, 'blankRow')])
 
-    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.saveLocation + r'\html templates'), trim_blocks=True)
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
     jinjaTemplate = jinjaEnvironment.get_template('typeCharacterisation__TEMPLATE.html')
     stringThing = jinjaTemplate.render(outPut=outPutDoc)
     htmlString = [a for a in stringThing.split('\n')]
@@ -432,6 +435,7 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
         os.makedirs(config.args.saveLocation + '/html outputs')
     #writeListToDestination(config.args.saveLocation +'/html outputs/typeCharacterisation__OUTPUT.html', htmlString)
 
+    print('Completed writeTypeBasedOutput()')
     return changeInFinalSupportOfInitialTypeDict, initialSupportOfInitialTypesDict, htmlString
 
 
@@ -806,7 +810,7 @@ def assignCladeCollections():
 
 
 def inferFinalSymbiodiniumTypes():
-
+    print('Running inferFinalSymbiodiniumTypes()')
     for CLADE in config.args.cladeList:
 
         # Get a list of all of the intialSymbiodinium types that have unique footprints
@@ -898,8 +902,7 @@ def inferFinalSymbiodiniumTypes():
                                 i += 1
                             break # Break out of the last for loop that checks to see if finaltypecladecollection is identified
                     break # Break out of the very first for loop that identifies a finaltypecladecollection of the given clade as there is only one per clade
-
-    return
+    print('Completed inferFinalSymbiodiniumTypes()')
 
 def typePrintOutString(coDom, listOfITS2Occurence, totalSeqs,  footprint, typeSupport, clade, typeoftype, coDomDict = None ): # Outputname
     footPrint = list(footprint)
@@ -988,9 +991,7 @@ def writeSampleCharacterisationOutput(changeInFinalSupportOfInitialTypeDict, ini
                         # For each type in the final type list and for the initial type
                         # Do the function for the write out
 
-
-
-    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.saveLocation + r'\html templates'), trim_blocks=True)
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
     jinjaTemplate = jinjaEnvironment.get_template('sampleCharacterisation__TEMPLATE.html')
     stringThing = jinjaTemplate.render(outPut=outPut)
     htmlString = [a for a in stringThing.split('\n')]
@@ -1056,10 +1057,27 @@ def CreateHumeFstMatrices():
     htmlOutput.extend(writeSampleCharacterisationOutput(absoluteSupportOfInitialTypeDict, initialSupportOfInitialTypesDict))
     # Add the closing tags to the html file
     closeAndWriteHtmlHolder(htmlOutput)
+    
+    if config.args.deleteIntermediateFiles:
+        print('Deleting intermediate files')
+        for dir in ['.bat scripts', 'matrices outputs', 'seq distance files', 'serialized objects']:
+            path = os.path.join(config.args.saveLocation, dir)
+            print('Deleting %s' % path)
+            shutil.rmtree(path)
+    if config.args.archiveInputs:
+        print('Zipping up input files to save space')
+        zf = zipfile.ZipFile(os.path.join(config.args.inputLocation, 'inputs.zip'), mode='w')
+        threeFiles = ['ITS2Abundance.txt', 'ITS2Fasta.fasta', 'LaJeunesse Types.fas']
+        inputs = [os.path.join(config.args.inputLocation, x) for x in threeFiles]
+        for file in inputs:
+            zf.write(file, arcname=os.path.basename(file), compress_type=zipfile.ZIP_DEFLATED)
+        zf.close()
+        for file in inputs:
+            print('Deleting %s' % file)
+            os.remove(file)
+    
     print('Program complete')
 
 ## MAIN ENTRY POINT OF PROGRAM ##
 if __name__ == '__main__':
     CreateHumeFstMatrices()
-
-

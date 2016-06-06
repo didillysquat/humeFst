@@ -28,7 +28,11 @@ def __init__():
     parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
     parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
     parser.add_argument('--rscriptLocation', default=cwd + '/R/R-3.3.0/bin/x64/Rscript.exe', help='Full path including Rscript.exe', metavar='PATH')
+    
+    # Batch mode
     parser.add_argument('--logToFile', action='store_true', help='Redirect stdout/stderr to files in saveLocation')
+    parser.add_argument('--deleteIntermediateFiles', action='store_true', help='When finished, delete intermediate state leaving only input/output')
+    parser.add_argument('--archiveInputs', action='store_true', help='When finished, compress input files into a .zip, and delete originals')
     
     # Caching
     parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
