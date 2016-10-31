@@ -36,15 +36,15 @@ class its2SequenceOccurance:
 
 class cladeCollection:
 
-    def __init__(self, clade, cutoff, listOfits2SequenceOccurances, foundWithinSample, proportion):
-        self.clade = clade
-        self.cutoff = cutoff
-        self.listOfits2SequenceOccurances = listOfits2SequenceOccurances
+    def __init__(self, clade, cutoff, listofseqsabovecutoff, foundwithinsample, cladalproportion):
+        self.clade = clade # The clade in question that all seqs are from
+        self.cutoff = cutoff # The cutoff percentage that the sequence abundance must be higher than to make the listOfSeqsAboveCutOff list and to be considered as the footprint
+        self.listOfSeqsAboveCutOff = listofseqsabovecutoff # List of the sequences from the sample that were found as a proportion of the total sequences from the given clade above the cutoff
         self.initialType = None
-        self.footPrint = frozenset([a.name for a in listOfits2SequenceOccurances])
-        self.maj = listOfits2SequenceOccurances[0].name
-        self.foundWithinSample = foundWithinSample
-        self.cladalProportion = proportion
+        self.footPrint = frozenset([a.name for a in listofseqsabovecutoff]) # The footprint of this cladeCollection as defined by the presence of sequences above the cutoff
+        self.maj = listofseqsabovecutoff[0].name # The predominant ITS2 sequence of the given clade
+        self.foundWithinSample = foundwithinsample # Which sample this clade collection is from
+        self.cladalProportion = cladalproportion # The proportion of the sample's total seqs that are of the clade in question
 
 
     def addInitialType(self, symbiodiniumType):
