@@ -25,6 +25,7 @@ import timeit
 from sklearn import manifold
 import plotly
 from plotly.graph_objs import Scatter, Layout
+from scipy import stats
 
 ## THESE ARE ALL THE SUBFUNCTIONS ##
 # read a file line by line with each line containing multiple items separated by a ','
@@ -325,21 +326,28 @@ def writeTypeBasedOutput2():
     initialSupportDict = {}
     finalSupportDict = {}
     for SAMPLE in config.abundanceList:
-        # Count support for inital types
+        # Count support for inital types both unsupported and supported
+        # We need to have a count for the unsupported types too as these will still be written out
+        # when we are writing the sample based output
         for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-            if CLADECOLLECTION.initialType.supportedType:
-                if CLADECOLLECTION.initialType.name not in initialSupportDict.keys():
-                    initialSupportDict[CLADECOLLECTION.initialType.name] = 1
-                else:
-                    initialSupportDict[CLADECOLLECTION.initialType.name] = initialSupportDict[CLADECOLLECTION.initialType.name] + 1
+
+            if CLADECOLLECTION.initialType.name not in initialSupportDict.keys():
+                initialSupportDict[CLADECOLLECTION.initialType.name] = 1
+            else:
+                initialSupportDict[CLADECOLLECTION.initialType.name] += 1
+
         # Count support for final types
         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
-            if FINALTYPECLADECOLLECTION.identified:
-                for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
-                    if FINALTYPE.name not in finalSupportDict.keys():
-                        finalSupportDict[FINALTYPE.name] = 1
-                    else:
-                        finalSupportDict[FINALTYPE.name] = finalSupportDict[FINALTYPE.name] + 1
+            # I'm going to remove the finaltypecladecollection.identified qualifier here
+            # I don't think it serves a purpose
+            # If we have a sample with an unidentifed set of types then we still want to be able to write out a count for them
+            # if FINALTYPECLADECOLLECTION.identified:
+            for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
+                if FINALTYPE.name not in finalSupportDict.keys():
+                    finalSupportDict[FINALTYPE.name] = 1
+                else:
+                    finalSupportDict[FINALTYPE.name] += 1
+
     # Now collect data per clade to print out in the HTML, including:
     # Total samples
     # Number of types
@@ -1546,7 +1554,7 @@ def investigateFinalTypeCorrelations():
         cladeSpecificListOfFinalTypes = []
         cladeSpecificListOfSamples = []
         for SAMPLE in config.abundanceList:
-            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList.clade:
+            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE:
                     if len(FINALTYPECLADECOLLECTION.listOfFinalTypes) > 0:
                         cladeSpecificListOfSamples.append(SAMPLE.name)
@@ -1554,51 +1562,105 @@ def investigateFinalTypeCorrelations():
                         if FINALTYPE.name not in cladeSpecificListOfFinalTypes:
                             cladeSpecificListOfFinalTypes.append(FINALTYPE.name)
         # Here we have a list of all of the final types that are found in all of the samples for the given clade
+        #There is no point in doing a correlation analysis if there are one or less types
 
+        if len(cladeSpecificListOfFinalTypes) > 1:
         # Initialize a list of tuples in which there is the typeName as the first item and the second item is a list
         #  which is the typesdistribution across the samples from the clade in question which is initially filled with 0s,
         # one for ever sample
-        listOfTypeDistributions = [(typeName, [0 for a in range(len(cladeSpecificListOfSamples))]) for typeName in
-                                   cladeSpecificListOfFinalTypes]
+            listOfTypeDistributions = [(typeName, [0 for a in range(len(cladeSpecificListOfSamples))]) for typeName in
+                                       cladeSpecificListOfFinalTypes]
 
-        # Now we revisit each sample and populate the type lists according to the abundance of types found in each sample
-        for SAMPLE in config.abundanceList:
-            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList.clade:
-                if FINALTYPECLADECOLLECTION.clade == CLADE:
-                    for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
-                        # When we get here then we have found a Final type that we need to count in the type distributions
-                        # We change the 0 count to a 1
-                        listOfTypeDistributions[cladeSpecificListOfFinalTypes.index(FINALTYPE.name)][1][
-                            cladeSpecificListOfSamples.index(SAMPLE.name)] = 1
-        # Here we have the listOfTypeDistributions populated with the counts
-        # We will not normalise these. If we were to divide each 1 by the total number of counts we would make it seems as though we had higher frequencies for those types that were less common
-        # We will pass in the listsOfTypeDistributions in the 1-0 form and output to a colformatted dictionary of the distances
+            # Now we revisit each sample and populate the type lists according to the abundance of types found in each sample
+            for SAMPLE in config.abundanceList:
+                if SAMPLE.name in cladeSpecificListOfSamples:
+                    for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                        if FINALTYPECLADECOLLECTION.clade == CLADE:
+                            for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
+                            # When we get here then we have found a Final type that we need to count in the type distributions
+                            # We change the 0 count to a 1
+                                listOfTypeDistributions[cladeSpecificListOfFinalTypes.index(FINALTYPE.name)][1][
+                                    cladeSpecificListOfSamples.index(SAMPLE.name)] = 1
+            # Here we have the listOfTypeDistributions populated with the counts
+            # We will not normalise these. If we were to divide each 1 by the total number of counts we would make it seems as though we had higher frequencies for those types that were less common
+            # We will pass in the listsOfTypeDistributions in the 1-0 form and output to a colformatted dictionary of the distances
 
-        # For every combination of the type tuples calculate the distances and add to the column formated distance dictionary
-        # with the key as a frozen set of the two type names and the value as their distance as calculated in the JSD
-        typeColFormatedTypeDict = {}
-        for finalType1, finalType2 in itertools.combinations(listOfTypeDistributions, 2):
-            typeColFormatedTypeDict[frozenset({finalType1[0], finalType2[0]})] = config.JSD(finalType1[1],
-                                                                                            finalType2[2])
+            # For every combination of the type tuples calculate the distances and add to the column formated distance dictionary
+            # with the key as a frozen set of the two type names and the value as their distance as calculated in the JSD
+            typeColFormatedTypeDict = {}
+            for finalType1, finalType2 in itertools.combinations(listOfTypeDistributions, 2):
+                typeColFormatedTypeDict[frozenset({finalType1[0], finalType2[0]})] = config.JSD(finalType1[1],
+                                                                                                finalType2[1])
 
-        # Convert the typeColFormatedTypeDict to a distance matrix
-        typeDistMatrix = createMatrixFromColDistsJSD(cladeSpecificListOfFinalTypes, typeColFormatedTypeDict)
+            # Convert the typeColFormatedTypeDict to a distance matrix
+            typeDistMatrix = createMatrixFromColDistsJSD(cladeSpecificListOfFinalTypes, typeColFormatedTypeDict)
 
-        # Convert the typeDistMatrix to MDS coordinates for plotting
-        typeMDSCoordinates = MDS(typeDistMatrix)
+            # Convert the typeDistMatrix to MDS coordinates for plotting
+            typeMDSCoordinates = MDS(typeDistMatrix)
 
-        # Here we need to plot the result
-        # I am going to try to use plotly to do this
-        # This will not give us a plot that we can save rather it will give us an html output
-        # If we get this to work them we can try to use the rpy2 package to create R based plots.
-        # We may even be able to use this to most of the R work.
-        xcoord = []
-        ycoord = []
-        for coords in typeMDSCoordinates:
-            xcoord.append(coords[0])
-            ycoord.append(coords[1])
-        plotly.offline.plot({'data': [Scatter(x=xcoord, y=ycoord)],
-                             'layout': Layout(title='Clade {0} final type dist plot'.format(CLADE))})
+            # Here we need to plot the result
+            # I am going to try to use plotly to do this
+            # This will not give us a plot that we can save rather it will give us an html output
+            # If we get this to work them we can try to use the rpy2 package to create R based plots.
+            # We may even be able to use this to most of the R work.
+            xcoord = []
+            ycoord = []
+            for coords in typeMDSCoordinates:
+                xcoord.append(coords[0])
+                ycoord.append(coords[1])
+            plotly.offline.plot({'data': [Scatter(x=xcoord, y=ycoord, mode='markers')],
+                                 'layout': Layout(title='Clade {0} final type dist plot'.format(CLADE))})
+
+            # This is working really well which is surprising
+            # although at a later date we may want to find a more proper way of working out the distances
+            # Now we are going to work out what the Z score is for each of the distances between points
+            # Bearing in mind that the Z score is simply the ratio of the distance from the mean / standard deviation
+            # For a one tailed distribution (we only care about the sample distance being statistically smaller than the average)
+            # we are going to have a cut of of 1.64 standard deviations from the mean to be significant at 0.05
+
+            # To do this we will first create a dictionary of the distances between two points
+            # We will then go over each of the possible combinations using itertools.combinations
+            # and create both a namelist and a distance list
+            # This will allow us to have an order for when we calculate the z scores using the stats.zscore() function
+            # and identify which pair of types each of the Zscores belongs to
+
+            typeCooDict = {cladeSpecificListOfFinalTypes[i]: typeMDSCoordinates[i] for i in range(len(cladeSpecificListOfFinalTypes))}
+            nameList = []
+            distList = []
+            outlierList = []
+            for finalType1, finalType2 in itertools.combinations(cladeSpecificListOfFinalTypes, 2):
+                nameList.append(frozenset({finalType1, finalType2}))
+                distList.append(distBetweenTwoPoints(typeCooDict[finalType1], typeCooDict[finalType2]))
+
+            numpyArrayOfDists = np.array(distList)
+
+            zScores = stats.zscore(numpyArrayOfDists)
+
+            nameZScoreTuple = [(nameList[i], zScores[i]) for i in range(len(zScores))]
+
+            # Here we will model a t distribution as n may be small
+            # We will calculate a t statistic for the distribution
+            # We will call an outlier if its given t score (effectively a z score as the sample is n of 1)
+            # is below the given t stat
+
+            tStat = stats.t.ppf(1-0.05, len(nameZScoreTuple))
+
+            # Was 1.64 cutoff
+            for tuple in nameZScoreTuple:
+                if tuple[1] < -tStat:
+                    outlierList.append(tuple[0])
+
+            print(outlierList)
+            a = 5
+            # At this point we have a list of outlier pairs
+            # We should then combine the two outliers into a single name
+            # Then go through the samples and look for either of the pairs and replace them with the single new type
+            # We will then need to do another count of the final types to look for support
+            # We will also have to possibly replace the inital types with this new combined type else the initial types will
+            # Look as though they have lost all support as you will never find it as a final type
+
+def distBetweenTwoPoints(coord1, coord2):
+    return math.hypot(coord2[0]-coord1[0], coord2[1]-coord1[1])
 
 ## MAIN FUNCTION ##
 def CreateHumeFstMatrices():
