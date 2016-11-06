@@ -1,7 +1,7 @@
 import HumeFst
 import config
 
-
+# We should consider re-naming this a sampleBasedSymbiodiniumType or something similar vs a type in the symbiodiniumTypeDB
 class symbiodiniumType:
 # when creating the final types try to pass in the total seqs from sample and the list of occurences from sample.compcomplement.listofits2collection
     def __init__(self, footPrint, clade, maj, typeOfType, coDom, listofoccurences = None, name =None, listofSamples=None,  supportedType = None, listofcodommajs = None,  totalseqs=None,  typeSupport=None, totalSeqs=None, permute=None, abundancelist = None):
@@ -177,7 +177,126 @@ class finalTypeCladeCollection:
 
         return tempList
 
+class symbiodiniumTypeDB:
+
+    def __init__(self, listoftypes=None):
+        self.typeDict = {}
+
+    def numberOfTypes(self):
+        return len(self.listOfTypes)
+
+    def initialiseFromAbundanceList(self, abundanceList):
+        for SAMPLE in abundanceList:
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                # Type instance
+                TI = CLADECOLLECTION.initialType
+                if TI.name not in self.typeDict.keys():
+                    # If this is the first time we come across this type we intialise it to the type DB with an inital type instance
+                    self.typeDict[TI.name] = symboidiniumDBTypeEntry(name=TI.name,
+                                                                    clade=TI.clade,
+                                                                    codom=TI.coDom,
+                                                                    samplename=SAMPLE,
+                                                                    typeOfType=TI.typeOfType,
+                                                                    maj=TI.maj,
+                                                                    listofdefiningintras=TI.sortedDefiningIts2Occurances)
+                else:
+                    self.typeDict[TI.name].update(typeoftype=TI.typeOfType, samplename=SAMPLE, coDom=TI.coDom,
+                                                  listofdefiningintras=TI.sortedDefiningIts2Occurances, maj=TI.maj)
+                    #Here we need to upgrade the type entry rather than start a new one
+            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
+                    if FINALTYPE.name not in self.typeDict.keys():
+                        self.typeDict[FINALTYPE.name] = symboidiniumDBTypeEntry(name=FINALTYPE.name,
+                                                                         clade=FINALTYPE.clade,
+                                                                         codom=FINALTYPE.coDom,
+                                                                         samplename=SAMPLE,
+                                                                         typeOfType=FINALTYPE.typeOfType,
+                                                                         maj=FINALTYPE.maj,
+                                                                         listofdefiningintras=None)
+                        # Here we need to initialise an entry into the DB using a final type to intialise
+                    else:
+                        # Here we need to upgrade the type with a FINAL type info, i.e. add to which samples
+                        # found in (final) but not add anything to the defining intras
+                        self.typeDict[FINALTYPE.name].update(typeoftype='FINAL', samplename=SAMPLE)
+        # This method will initialise the database from a given abundanceList
+        # Alternatively the addType and __init__ can be used to add types to the DB
 
 
+    def addType(self, listofsymbiodiniumdbttypeentries):
+        self.listOfTypes.extend(listofsymbiodiniumdbttypeentries)
+
+class symboidiniumDBTypeEntry:
+
+    '''This creates an instance of the typeEntry probably with only a single instance of the type found in a sample
+    We will continue to update the information as we come across instances of the type within the samples'''
+    def __init__(self, name, clade, codom, samplename, typeOfType, maj, listofdefiningintras = None):
+        ''' If type is final then we take no listofdefiningintras as we only want this info from intial cases'''
+        self.name = name
+        self.coDom = codom
+        self.clade = clade
+        # If listofdefiningintras == None then set to empty
+        self.definingIntras = definingIntraSet(listofdefiningintras)
+        if self.coDom == False:
+            self.majDictOfInitOccurances = {}
+            self.majDictOfInitOccurances[maj] = 1
+        else:
+            #TODO look how this will work for an example of a coDom type
+            self.majDictOfInitOccurances = {}
+            self.majDictOfInitOccurances[maj] = 1
+        if typeOfType == 'FINAL':
+            self.samplesFoundInAsFinal = [samplename]
+            self.samplesFoundInAsInitial = []
+        elif typeOfType == 'INITIAL':
+            self.samplesFoundInAsFinal = []
+            self.samplesFoundInAsInitial = [samplename]
+
+
+    def update(self, typeoftype, samplename, coDom = None, listofdefiningintras = None, maj = None):
+        ''' We only take a maj argument if this is coDom and initial
+        we only take listofdefiningintras argument if this typeoftype is inital'''
+        if typeoftype == 'INTIAL':
+            self.samplesFoundInAsInitial.append(samplename)
+            self.definingIntras.update(anotherlistofdefiningintras=listofdefiningintras)
+            if coDom:
+                a = 'append info to the codom info here'
+
+        elif typeoftype == 'FINAL':
+            self.samplesFoundInAsFinal.append(samplename)
+
+
+
+    def initialiseSymTypeEntry(self):
+        # TODO write this method that will cycle through config.abundance to get the above info
+        a = 5
+
+
+
+
+class definingIntraSet:
+    '''This will be a set of defiing intras for a given type. We will only consider abundance of
+    intras within types that are initial (not final). We will use the abundances, and standard deviations from
+    these abundances as well as the ratio between the intras to determine whether types identified in final types
+    are indeed representative of this given type'''
+    def __init__(self, listofdefiningintras):
+        if listofdefiningintras != None:
+            self.definingIntrasSet = [listofdefiningintras]
+        else:
+            self.definingIntrasSet = []
+
+
+    def definingInfo(self):
+        a = 5
+        # This will give us a data set of mean abundances and s.d.s of each of the defining intas and possibly all seqs
+        # found in all the samples containing this type as an initial type. Used in LDA linear discriminant anlysis
+
+    def update(self, anotherlistofdefiningintras):
+        self.definingIntrasSet.append(anotherlistofdefiningintras)
+
+class definingIntra:
+    ''' This is a given intragenomic sequence within the context of a type
+    we are only considering its abundance within initial (not final) instances of the type
+    '''
+    def __init__(self, typeName, intraName):
+        self.listOfIntraInstances
 
 

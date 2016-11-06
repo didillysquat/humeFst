@@ -2012,6 +2012,13 @@ def CreateHumeFstMatrices():
                                           'abundanceListWithFinalTypes', config.abundanceList)
     print('Final type inference complete')
 
+    # Initiate the type database wich will hold type
+    # oriented (rather then by sample) info on the projects types identified
+    # This info will be critical when working out which type calls to assign to samples
+    # It will also make writing out the type-based outputs much simpler
+    global typeDB
+    typeDB = symbiodiniumTypeDB().initialiseFromAbundanceList(config.abundanceList)
+
 
     #Create masterSeqDistancesDict
     #This is a dictionary that has the genetic distances between every combination of sequences from the same clade.
