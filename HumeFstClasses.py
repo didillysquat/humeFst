@@ -4,7 +4,7 @@ import config
 
 class symbiodiniumType:
 # when creating the final types try to pass in the total seqs from sample and the list of occurences from sample.compcomplement.listofits2collection
-    def __init__(self, footPrint, clade, maj, typeOfType, coDom, listofoccurences = None, name =None, listofSamples=None,  supportedType = None, listofcodommajs = None,  totalseqs=None,  typeSupport=None, totalSeqs=None):
+    def __init__(self, footPrint, clade, maj, typeOfType, coDom, listofoccurences = None, name =None, listofSamples=None,  supportedType = None, listofcodommajs = None,  totalseqs=None,  typeSupport=None, totalSeqs=None, permute=None, abundancelist = None):
         self.coDom = coDom
         # If coDom then cannot have a singlemaj
         # We will condition off the setting of the self.maj property conditional on the type being not coDom and see where we fail.
@@ -58,8 +58,6 @@ class symbiodiniumType:
         # This will count how many times the sequences in the footprint are found in all samples that contain the footprint
         if self.typeOfType == 'INITIAL':
             ProportionDict = {seq: 0 for seq in self.footPrint}
-            if 'Otu12987' in ProportionDict.keys() and 'Otu23805' in ProportionDict.keys():
-                print('foo')
             for SAMPLE in config.abundanceList:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.footPrint == self.footPrint:
@@ -78,19 +76,6 @@ class symbiodiniumType:
             sortedList = [a[0] for a in sortedList]
             self.typeTotalProportion = sum([ProportionDict[intra] for intra in self.footPrint])
 
-        # else:  # self.typeOfType == 'FINAL': # create an abundance dictionary based on only occurances from the sample in question
-        # ProportionDict = {}
-        # cladalProportion = sum([occurence.abundance for occurence in listOfOccurences if
-        #                         occurence.clade == self.clade]) / totalSeqs  # This is the decimal percentage of the proportion of that clades sequences in that sample
-        # for OCCURENCE in listOfOccurences:
-        #     if OCCURENCE.clade == self.clade:
-        #         ProportionDict[OCCURENCE.name] = OCCURENCE.abundance / (
-        #         cladalProportion * totalSeqs)  # This is the decimal percentage of this sequence as a proportion of it's clades sequences within the sample
-        # sortedList = [(a[0], a[1]) for a in sorted(ProportionDict.items(), key=lambda x: x[1], reverse=True) if
-        #               a[0] in self.footPrint]
-        # copyOfSortedList = list(sortedList)
-        # sortedList = [a[0] for a in sortedList]
-        # self.typeTotalProportion = sum([ProportionDict[intra] for intra in self.footPrint])
 
         footprintList = list(self.footPrint)
         #convert  the footPrint Intras, the ProportionDict and the coDomdict to LaJeunesse names

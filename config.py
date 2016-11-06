@@ -1,17 +1,17 @@
 import argparse
-from tkinter import messagebox
+
 import pickle
 from multiprocessing import Queue, Process
 import multiprocessing
 import os
 from subprocess import call
 import sys
-from Bio import pairwise2
+
 import numpy as np
 import itertools
-import copy
+
 import timeit
-import warnings
+
 from scipy.stats import entropy
 
 from ClassesTwo import *
@@ -20,7 +20,8 @@ def __init__():
     parser = argparse.ArgumentParser()
     
     # Computation parameters
-    parser.add_argument('--cutOff', type=float, default=0.1, metavar='CUTOFF')
+    parser.add_argument('--conductDynamicCutoffAnalysis', type=bool, default=False, metavar='dynamCutOffAnalysis')
+    parser.add_argument('--cutOff', type=float, default=0.04, metavar='CUTOFF')
     parser.add_argument('--cladePlotCutOff', type=int, default=3, metavar='cladePlotCutOff')
     parser.add_argument('--majPlotCutOff', type=int, default=4, metavar='majPlotCutOff')
     parser.add_argument('--typeSupport', type=int, default=0.01, help='The number of samples that must contain a type in order for it to be considered as a genuine type as a proportion of the number of cladeCollections for a given clade', metavar='N')
@@ -44,11 +45,12 @@ def __init__():
     parser.add_argument('--archiveInputs', action='store_true', help='When finished, compress input files into a .zip, and delete originals')
     
     # Caching
+    parser.add_argument('--developingMode', type = bool, default =True, metavar='TRUE|FALSE')
     parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
-    parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     
     global args
@@ -81,7 +83,7 @@ def __init__():
 
     global oursToLaJDict
     oursToLaJDict = None
-    if not args.createOursToLaJDictFromScratch:
+    if not args.createOursToLaJDictFromScratch or args.developingMode:
         try:
             oursToLaJDict = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects', 'oursToLaJDict')
         except:
@@ -97,7 +99,7 @@ def __init__():
     global seqToFFPProbDistDict
     seqNameToCladeDict = None
     seqToFFPProbDistDict = None
-    if not args.createSeqToCladeDictFromScratch:
+    if not args.createSeqToCladeDictFromScratch or args.developingMode:
         try:
             tempResult = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects',
                                                                'seqNameToCladeDict')
@@ -115,7 +117,7 @@ def __init__():
     # Create AbundanceList
     global abundanceList
     abundanceList = None
-    if not args.createAbundanceListFromScratch:
+    if not args.createAbundanceListFromScratch or args.developingMode:
         try:
             abundanceList = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects', 'abundanceList')
         except:

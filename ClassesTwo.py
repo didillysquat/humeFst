@@ -42,7 +42,10 @@ class cladeCollection:
         self.listOfSeqsAboveCutOff = listofseqsabovecutoff # List of the sequences from the sample that were found as a proportion of the total sequences from the given clade above the cutoff
         self.initialType = None
         self.footPrint = frozenset([a.name for a in listofseqsabovecutoff]) # The footprint of this cladeCollection as defined by the presence of sequences above the cutoff
-        self.maj = listofseqsabovecutoff[0].name # The predominant ITS2 sequence of the given clade
+        try:
+            self.maj = listofseqsabovecutoff[0].name # The predominant ITS2 sequence of the given clade
+        except:
+            self.maj = 'None'
         self.foundWithinSample = foundwithinsample # Which sample this clade collection is from
         self.cladalProportion = cladalproportion # The proportion of the sample's total seqs that are of the clade in question
 

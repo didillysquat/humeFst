@@ -26,6 +26,7 @@ from sklearn import manifold
 import plotly
 from plotly.graph_objs import Scatter, Layout
 from scipy import stats
+from copy import deepcopy
 
 ## THESE ARE ALL THE SUBFUNCTIONS ##
 # read a file line by line with each line containing multiple items separated by a ','
@@ -311,18 +312,9 @@ def createFstColDists(cladeCollectionList, masterSeqDistancesDict):
 def writeTypeBasedOutput2():
     print('Conducting type-based analysis')
     #23/08/16
-    # We have left the inital type in the finalTypeList as we were not sure why it was being removed.
-    # Again, I think the above can be simplified.
 
     # We will go through each of the samples' cladeCollections by clade.
-    # We will do a count for the intial types and we will do a count for the final types.
-    # We will conly count final types if the finaltype is .identified==True
-
-    # Make two dictionaries one for support of inital type and one for support of final type
-    # Count how many samples each type is found in. Use the inital type's name
-    # For final type. Count it as being in a sample if the sample's final clade collection in question is
-    # identified (i.e. all of the intras above the cutoff value are accounted for)
-
+    # We will count how many samples each type is found in both as an initial and a final
     initialSupportDict = {}
     finalSupportDict = {}
     for SAMPLE in config.abundanceList:
@@ -330,30 +322,35 @@ def writeTypeBasedOutput2():
         # We need to have a count for the unsupported types too as these will still be written out
         # when we are writing the sample based output
         for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-
             if CLADECOLLECTION.initialType.name not in initialSupportDict.keys():
                 initialSupportDict[CLADECOLLECTION.initialType.name] = 1
             else:
                 initialSupportDict[CLADECOLLECTION.initialType.name] += 1
 
+
         # Count support for final types
         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
-            # I'm going to remove the finaltypecladecollection.identified qualifier here
-            # I don't think it serves a purpose
-            # If we have a sample with an unidentifed set of types then we still want to be able to write out a count for them
-            # if FINALTYPECLADECOLLECTION.identified:
             for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
                 if FINALTYPE.name not in finalSupportDict.keys():
                     finalSupportDict[FINALTYPE.name] = 1
                 else:
                     finalSupportDict[FINALTYPE.name] += 1
 
+    # Once we have done all of the counts, we must also make sure that inital supported
+    # types that have not been carried over into final types have a final type support of zero
+    # E.g. if C1 as an itial type was surpassed by C1-XXX in all final samples, then C1 would not be in the final support dict
+    # so we must add it in with a value of 0
+    for initalType in initialSupportDict.keys():
+        if initalType not in finalSupportDict.keys():
+            finalSupportDict[initalType] = 0
+
+
     # Now collect data per clade to print out in the HTML, including:
     # Total samples
     # Number of types
     # Number of codom Types
     # Number of non-CoDom Majs
-    # Number of samples with a clade X type identified (this does not include samples that are FINALTYPECLADECOLLECTION.identified == False
+
 
     #Doc for the output
     outPutDoc = []
@@ -366,7 +363,14 @@ def writeTypeBasedOutput2():
         collectionOfCoDomTypes = {}
         collectionOfNonCoDomMajs = {}
         collectionOfIdentifiedSamples = []
+        cladeSpecificInitialSupportDict = {}
         for SAMPLE in config.abundanceList:
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE and CLADECOLLECTION.initialType.supportedType:
+                    if CLADECOLLECTION.initialType.name not in cladeSpecificInitialSupportDict.keys():
+                        cladeSpecificInitialSupportDict[CLADECOLLECTION.initialType.name] = 1
+                    else:
+                        cladeSpecificInitialSupportDict[CLADECOLLECTION.initialType.name] += 1
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE:
                     totalSamples += 1
@@ -407,7 +411,18 @@ def writeTypeBasedOutput2():
         if len(orderedListOfNonCoDomMajs) > 0 or len(orderedListOfCoDomTypes) > 0:
 
             # ADD CLADE LEVEL INFOMATION
-            outPutDoc.append(('Clade ' + CLADE + ':  TYPES = ' + str(len(collectionOfTypes.keys())) + ' / non-CoDom Majs = ' + str(len(collectionOfNonCoDomMajs.keys())) + ' / CoDom Types = ' + str(len(collectionOfCoDomTypes)) + ' / Samples with type identified = ' + str((totalSamples - len(collectionOfIdentifiedSamples))), 'cladeHeader'))
+            outPutDoc.append(('Clade {0}: Types = {1} / non-CoDom Majs = {2} / coDom types = {3} / samples with type identified = {4}'.format(CLADE, str(len(collectionOfTypes.keys())), str(len(collectionOfNonCoDomMajs.keys())), str(len(collectionOfCoDomTypes)), str((totalSamples - len(collectionOfIdentifiedSamples)))), 'cladeHeader'))
+
+            # INSERT CLADAL TYPE SUMMARY INFORMATION
+            outPutDoc.append(('Type Summary', 'majHeader'))
+            # We currently list the types in order of initial support. However we could
+            # just as easily list them in final support just by using the finalSupportDict instead
+            orderedListOfInitialTypes = [a[0] for a in sorted(cladeSpecificInitialSupportDict.items(), key=lambda x: x[1], reverse=True)]
+            for INITIALTYPE in orderedListOfInitialTypes:
+                outPutDoc.append((['{0}'.format(INITIALTYPE), '{0}:{1}'.format(str(initialSupportDict[INITIALTYPE]),
+                                                                               str(finalSupportDict[INITIALTYPE]))],
+                                  'typeInfo'))
+
             # INSERT FIGURE HERE
             # If the plots that we want to add exists
             fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/Clade' + CLADE + '_FstPlot.svg'
@@ -416,6 +431,7 @@ def writeTypeBasedOutput2():
                 outPutDoc.append(([fstPlotDir, paretoPlotDir], 'cladalPlot'))
             else:
                 outPutDoc.append((config.args.saveLocation + '/html templates/image.jpg', 'plotError'))
+
 
             # NOW GO MAJ BY MAJ WITHIN THE CLADE
             orderedListOfMajs = [a[0] for a in sorted(collectionOfMajs.items(), key=lambda x: len(x[1]), reverse=True)]
@@ -442,7 +458,7 @@ def writeTypeBasedOutput2():
                 if os.path.isfile(fstPlotDir):
                     outPutDoc.append((fstPlotDir, 'majPlot'))
                 else:
-                    outPutDoc.append((config.args.saveLocation + '/html templates/image.jpg', 'plotError'))
+                    outPutDoc.append(('Insufficient samples to warrant plot', 'plotError'))
 
                 # TABLE HEADERS FOR MAJ SUMMARY NON_CODOM
                 outPutDoc.append((['non-CoDom type', 'Initial:Final Support'], 'subHeader'))
@@ -463,10 +479,10 @@ def writeTypeBasedOutput2():
                 orderedListOfCoDomTypesInMaj = [a[0] for a in orderedListOfAbundanceCoDomTuplesTypesInMaj]
                 if len(orderedListOfCoDomTypesInMaj) > 0:
                     # CODOM HEADER
-                    outPutDoc.append(('Co-Dominant Types = ' + str(len(orderedListOfCoDomTypes)), 'majHeader'))
+                    outPutDoc.append(('Co-Dominant Types = ' + str(len(orderedListOfCoDomTypesInMaj)), 'majHeader'))
                     # ADD CODOMS
-                    for TYPENAME in orderedListOfCoDomTypes:
-                        outPutDoc.append((['Type ' + TYPENAME, str(initialSupportDict[TYPENAME]) + ':' + str(finalSupportDict[TYPENAME])], 'typeInfo'))
+                    for TYPENAME in orderedListOfCoDomTypesInMaj:
+                        outPutDoc.append((['Type {0}'.format(TYPENAME), '{0}:{1}'.format(str(initialSupportDict[TYPENAME]), str(finalSupportDict[TYPENAME]))], 'typeInfo'))
 
     # TRANSLATE OUTPUT DOC INTO HTML
     jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
@@ -639,8 +655,6 @@ def producePlots(coldists):
         # Firstly write out a cladal Matrice before looking to do the Maj-based matrices
         listOfSamples = [] # A list of samples with cladeCollections of the given clade. i.e. all samples that will be represented in the majPlot
         for SAMPLE in config.abundanceList:
-            if SAMPLE.name == 'OMd_028':
-                a = 5
             # for CLADECOLLECTION in SAMPLE.cladeCollectionList:
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 # if CLADECOLLECTION.clade == CLADE:
@@ -797,7 +811,6 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
                             majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
                         else:
                             majITS2 = CLADECOLLECTION.maj
-
                         infoList.append(','.join([SAMPLE.name, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.reef), xstr(SAMPLE.region), majITS2, CLADECOLLECTION.initialType.name, str(CLADECOLLECTION.initialType.coDom)]))
 
         # E) Write infolist
@@ -1036,6 +1049,8 @@ def assignInitialTypes(cladecollectioncountdict):
                 # TODO at this point there is no way of knowing whether this type is coDom or not as it is in so few samples. We may have to work this out later on.
                 # Put the new Type into the samples' collectionlits that have it
                 addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+
+
     return
 
 def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
@@ -1051,54 +1066,6 @@ def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
                     CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
 
-# def createMasterSeqDistances():
-#     #sequsedinFst was calculated alongside the cladeCollectionList and so only contains sequences appearing at the given cutoff percentage, i.e. those that appear in the cladeCollectionList and so will be used in the creation of matrices and identification of types
-#     #Then for each of the lists, create fastas for each clade
-#     #Then read each fasta into mothur and output the dist file
-#     #Read these files in and concatenate them so that there is a mast dist file
-#     #Turn this into a dictionary
-#
-#     print('Running createMasterSeqDistances()')
-#     print('Starting time for classical distance')
-#     t0 = timeit.default_timer()
-#     outPutFastaCollection = []
-#     for CLADE in config.args.cladeList:
-#         sequencesUsedInFst = []
-#         listOfNames = []
-#         for sample in config.abundanceList:
-#             for cladeCollection in sample.cladeCollectionList: # For each cladeCollection
-#                 if cladeCollection.clade == CLADE:
-#                     for sequenceOccurance in cladeCollection.listOfSeqsAboveCutOff:
-#                         if sequenceOccurance.name not in listOfNames:
-#                             sequencesUsedInFst.append(sequenceOccurance)
-#                             listOfNames.append(sequenceOccurance.name)
-#         outPutFasta = []
-#         for seqoccurance in set(sequencesUsedInFst):
-#             outPutFasta.extend(['>' + seqoccurance.name, seqoccurance.sequence])
-#         outPutFastaCollection.append(outPutFasta)
-#
-#     distsList = []
-#     batchFile = []
-#     for fasta in outPutFastaCollection: # Write the fastas to the mothur directory so that they can be processed
-#         if len(fasta) > 4: # Check to see if there are at least two sequences in the fasta so that a pairwise comparison can be done by mothur
-#             clade = config.args.cladeList[outPutFastaCollection.index(fasta)]
-#             dest = config.args.saveLocation + r'\seq distance files\clade' + clade + r'SequencesUsedInFst.fas'
-#             writeListToDestination(dest, fasta) #Write out the fasta
-#             batchFile.append("pairwise.seqs(fasta=clade" + clade + "SequencesUsedInFst.fas, processors=" + str(config.args.numProcessors) + ", outputdir=" + config.args.saveLocation + r'\seq distance files, inputdir=' + config.args.saveLocation+ r'\seq distance files' + ')')
-#     batDir = config.args.saveLocation + '/.bat scripts'
-#     writeListToDestination(batDir + '/mothurDistCalc.bat', batchFile)
-#     # Here we should have written the batch file
-#     # Now just to attempt to run it on the command line
-#     cmd = [config.args.mothurLocation, 'mothurDistCalc.bat']
-#     print('Running ' + str(cmd) + ' in ' + batDir)
-#     call(cmd, shell=True, cwd=batDir)
-#     for clade in config.args.cladeList:
-#         if os.path.exists(config.args.saveLocation + r'\seq distance files\clade' + clade + 'SequencesUsedInFst.dist'):
-#             distsList.extend(readDefinedFileToList(config.args.saveLocation + r'\seq distance files\clade' + clade + 'SequencesUsedInFst.dist'))# Read the output file back in
-#     masterSeqDistancesDict = {frozenset(a.split(' ')[:-1]): float(a.split(' ')[2]) for a in distsList}
-#     t1 = timeit.default_timer()
-#     print('Time taken = {0}'.format(str(t1-t0)))
-#     return masterSeqDistancesDict
 
 def createMasterSeqDistancesNonMothur():
     #sequsedinFst was calculated alongside the cladeCollectionList and so only contains sequences appearing at the given cutoff percentage, i.e. those that appear in the cladeCollectionList and so will be used in the creation of matrices and identification of types
@@ -1156,6 +1123,8 @@ def assignCladeCollections():
                 # Finally we add the new normalised list to the sample as a cladeCollection
                 SAMPLE.addCladeCollection(cladeCollection(CLADE, config.args.cutOff, listofseqsabovecutoff=tempListOfits2SequenceOccurances, foundwithinsample= SAMPLE.name, cladalproportion=cladeSpecificSeqs/totalSeqs))
                 cladeCollectionCountDict[CLADE] =  cladeCollectionCountDict[CLADE] + 1
+
+    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict', cladeCollectionCountDict)
     return cladeCollectionCountDict
 
 def inferFinalSymbiodiniumTypes():
@@ -1204,8 +1173,6 @@ def inferFinalSymbiodiniumTypes():
         typeList = []
         typeCountDict = {}
         for SAMPLE in config.abundanceList:
-            if SAMPLE.name == 'OMa_030' and CLADE == 'D':
-                a = 5
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
                     if CLADECOLLECTION.initialType.footPrint not in footprintList and CLADECOLLECTION.initialType.supportedType:
@@ -1354,49 +1321,6 @@ def typeOutputString(name, sorteddefiningits2occurances, initialsupportdict, fin
     return newString
 
 
-# def typePrintOutString(coDom, listOfITS2Occurence, totalSeqs,  footprint, initialsupportdict, finalsupportdict, clade, typeoftype, coDomDict = None ): # Outputname
-#     footPrint = list(footprint)
-#     #make intraCladalProportionDict
-#     intraCladalProportionDict = {}
-#     cladalProportion = sum([occurence.abundance for occurence in listOfITS2Occurence if occurence.clade == clade])/totalSeqs
-#     for OCCURENCE in listOfITS2Occurence:
-#         if OCCURENCE.name in footPrint:
-#             intraCladalProportionDict[OCCURENCE.name] = OCCURENCE.abundance/(cladalProportion*totalSeqs)
-#     #convert the footPrint Intras, the intracladalpropdict and the coDOmdict to LaJeunesse language
-#     i = 0
-#     while i < len(footPrint):
-#         if footPrint[i] in config.oursToLaJDict.keys():
-#             if coDomDict:
-#                 if footPrint[i] in coDomDict.keys():
-#                     coDomDict[config.oursToLaJDict[footPrint[i]]] = coDomDict[footPrint[i]]
-#                     del coDomDict[footPrint[i]]
-#             if footPrint[i] in intraCladalProportionDict.keys():
-#                 intraCladalProportionDict[config.oursToLaJDict[footPrint[i]]] = intraCladalProportionDict[footPrint[i]]
-#                 del intraCladalProportionDict[footPrint[i]]
-#             footPrint[i] = config.oursToLaJDict[footPrint[i]]
-#         i += 1
-#
-#     sortedList = [a[0] for a in sorted(intraCladalProportionDict.items(), key=lambda x: x[1], reverse=True)]
-#     added = []
-#     if coDom:
-#         sortedCoDomKeys = [intra for intra in sortedList if intra in coDomDict]
-#         namePart1 = '/'.join([codomintra + '[' + str(format(intraCladalProportionDict[codomintra], '.2f')) + ']' for codomintra in sortedCoDomKeys if coDomDict[codomintra]]) # Add any coDom intras first
-#         added.extend([codomintra for codomintra in coDomDict.keys() if coDomDict[codomintra]])
-#     namePart2 = '-'.join([noncoDomIntras + '[' + str(format(intraCladalProportionDict[noncoDomIntras], '.2f')) + ']' for noncoDomIntras in sortedList if noncoDomIntras not in added]) # If it isn't already in the name because it is a codom then add in order of abundance within the sample
-#     if coDom and len(namePart2) > 0:
-#         outputName = '-'.join([namePart1, namePart2])
-#     elif coDom and len(namePart2) == 0:
-#         outputName = namePart1
-#     else:
-#         outputName = namePart2
-#     typeTotalProportion = sum([intraCladalProportionDict[intrasinfootprint] for intrasinfootprint in footPrint])# The summed proportions of all of the Type's intras
-#     outputName = outputName + '\t[' + str(typeSupport[0]) + ':' + str(typeSupport[1]) + ']'
-#
-#     if typeoftype == 'INITIAL':
-#         return outputName
-#     else:
-#         return outputName #, typeTotalProportion, typeSupport
-
 def writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict):
     xstr = lambda s: s or ""
     # This is going to be going sample by sample
@@ -1439,6 +1363,7 @@ def writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict):
                                 else:# If there aren't any further types due to all seqs in the finaltypecladecollection being removed
                                     outPut.append(([None, initialTypeOutName.split('\t')[0], initialTypeOutName.split('\t')[1], None, None], 'notBold'))
                     else:# If there aren't any further types due to there being no finaltypecladecollections
+                        initialTypeOutName = typeOutputString(name=CLADECOLLECTION.initialType.name,sorteddefiningits2occurances=CLADECOLLECTION.initialType.sortedDefiningIts2Occurances, initialsupportdict=initialSupportDict, finalsupportdict=finalSupportDict)
                         outPut.append(([None, initialTypeOutName.split('\t')[0], initialTypeOutName.split('\t')[1], None, None], 'notBold'))
         outPut.append((None, 'blankLine'))
                         # For each type in the final type list and for the initial type
@@ -1527,7 +1452,7 @@ def createMatrixFromColDistsJSD(listoffinaltypes, JSDcoldistdict):
             if typeOne == typeTwo:
                 Matrix[row][col] = 0.00
             else:
-                Matrix[row][col] = Matrix[col][row] = JSDcoldistdict[frozenset({typeOne, typeTwo})]
+                Matrix[row][col] = Matrix[col][row] = max(JSDcoldistdict[frozenset({typeOne, typeTwo})], 0.001)
             col += 1
         row += 1
 
@@ -1582,85 +1507,384 @@ def investigateFinalTypeCorrelations():
                                 listOfTypeDistributions[cladeSpecificListOfFinalTypes.index(FINALTYPE.name)][1][
                                     cladeSpecificListOfSamples.index(SAMPLE.name)] = 1
             # Here we have the listOfTypeDistributions populated with the counts
-            # We will not normalise these. If we were to divide each 1 by the total number of counts we would make it seems as though we had higher frequencies for those types that were less common
-            # We will pass in the listsOfTypeDistributions in the 1-0 form and output to a colformatted dictionary of the distances
+            # We will now compare distributions of types
+            # We will compare type pairs. If they are found in very similar samples then they are candidates for collapse
+            # To do the comparison we will only look at samples in which the type with the lower abundance is found
+            # Explanation below:
+            '''
+            I think the concept of this works well in general but I think that we should only count the distribution
+            of the less frequent type. This way, if the less frequent type is found in every sample withthe more frequent
+            we will get pure correlation. If we compared all of the samples in which either of the types were found
+            and one type is found in far more samples, then we end up with effectively lots of samples that the less frequenct
+            type is not found and so that looks like a positive lack of correlation when in fact it may be due to simply
+            not having more data types for that type. If the less frequent type is indded found in samples without the more frequent
+            type then that is fair game to say that that is evidnce for a lack of correlation and them being separate types.
+            '''
+            # We will use a cutoff of 0.8 i.e. 80% similarity to collapse
 
-            # For every combination of the type tuples calculate the distances and add to the column formated distance dictionary
-            # with the key as a frozen set of the two type names and the value as their distance as calculated in the JSD
-            typeColFormatedTypeDict = {}
+            collapseList = []
             for finalType1, finalType2 in itertools.combinations(listOfTypeDistributions, 2):
-                typeColFormatedTypeDict[frozenset({finalType1[0], finalType2[0]})] = config.JSD(finalType1[1],
-                                                                                                finalType2[1])
 
-            # Convert the typeColFormatedTypeDict to a distance matrix
-            typeDistMatrix = createMatrixFromColDistsJSD(cladeSpecificListOfFinalTypes, typeColFormatedTypeDict)
+                correlationCoefficient = 0
+                # Identify which of the final types is more abundant i.e. found in more samples
+                if sum(finalType1[1]) > sum(finalType2[1]):
+                    # In this case then we want to only be concerned with samples in which finalType2 are found
+                    newDistrOne = [finalType1[1][i] for i in range(len(finalType2[1])) if finalType2[1][i] == 1]
+                    newDistrTwo = [finalType2[1][i] for i in range(len(finalType2[1])) if finalType2[1][i] == 1]
+                    # Work out the correlation as a ratio of the number of samples both types are found in relative
+                    # to the number of samples the least abundant type is fond in
+                    correlationCoefficient = sum(newDistrOne)/sum(newDistrTwo)
 
-            # Convert the typeDistMatrix to MDS coordinates for plotting
-            typeMDSCoordinates = MDS(typeDistMatrix)
+                else:
+                    # In this case then we want to only be concerned with samples in which finalType1 are found
+                    newDistrOne = [finalType1[1][i] for i in range(len(finalType1[1])) if finalType1[1][i] == 1]
+                    newDistrTwo = [finalType2[1][i] for i in range(len(finalType1[1])) if finalType1[1][i] == 1]
+                    correlationCoefficient = sum(newDistrTwo) / sum(newDistrOne)
 
-            # Here we need to plot the result
-            # I am going to try to use plotly to do this
-            # This will not give us a plot that we can save rather it will give us an html output
-            # If we get this to work them we can try to use the rpy2 package to create R based plots.
-            # We may even be able to use this to most of the R work.
-            xcoord = []
-            ycoord = []
-            for coords in typeMDSCoordinates:
-                xcoord.append(coords[0])
-                ycoord.append(coords[1])
-            plotly.offline.plot({'data': [Scatter(x=xcoord, y=ycoord, mode='markers')],
-                                 'layout': Layout(title='Clade {0} final type dist plot'.format(CLADE))})
+                # Add the pairs that will be collapsed to list
+                if correlationCoefficient > 0.8:
+                    collapseList.append(({finalType1[0], finalType2[0]}, correlationCoefficient))
 
-            # This is working really well which is surprising
-            # although at a later date we may want to find a more proper way of working out the distances
-            # Now we are going to work out what the Z score is for each of the distances between points
-            # Bearing in mind that the Z score is simply the ratio of the distance from the mean / standard deviation
-            # For a one tailed distribution (we only care about the sample distance being statistically smaller than the average)
-            # we are going to have a cut of of 1.64 standard deviations from the mean to be significant at 0.05
 
-            # To do this we will first create a dictionary of the distances between two points
-            # We will then go over each of the possible combinations using itertools.combinations
-            # and create both a namelist and a distance list
-            # This will allow us to have an order for when we calculate the z scores using the stats.zscore() function
-            # and identify which pair of types each of the Zscores belongs to
 
-            typeCooDict = {cladeSpecificListOfFinalTypes[i]: typeMDSCoordinates[i] for i in range(len(cladeSpecificListOfFinalTypes))}
-            nameList = []
-            distList = []
-            outlierList = []
-            for finalType1, finalType2 in itertools.combinations(cladeSpecificListOfFinalTypes, 2):
-                nameList.append(frozenset({finalType1, finalType2}))
-                distList.append(distBetweenTwoPoints(typeCooDict[finalType1], typeCooDict[finalType2]))
-
-            numpyArrayOfDists = np.array(distList)
-
-            zScores = stats.zscore(numpyArrayOfDists)
-
-            nameZScoreTuple = [(nameList[i], zScores[i]) for i in range(len(zScores))]
-
-            # Here we will model a t distribution as n may be small
-            # We will calculate a t statistic for the distribution
-            # We will call an outlier if its given t score (effectively a z score as the sample is n of 1)
-            # is below the given t stat
-
-            tStat = stats.t.ppf(1-0.05, len(nameZScoreTuple))
-
-            # Was 1.64 cutoff
-            for tuple in nameZScoreTuple:
-                if tuple[1] < -tStat:
-                    outlierList.append(tuple[0])
-
-            print(outlierList)
             a = 5
-            # At this point we have a list of outlier pairs
+
+                # Here we need to consider what will happen if we have triangles (or more) of types that need collapse
+                # i.e. a collapses to b and b collapses to c
+
+
             # We should then combine the two outliers into a single name
             # Then go through the samples and look for either of the pairs and replace them with the single new type
             # We will then need to do another count of the final types to look for support
             # We will also have to possibly replace the inital types with this new combined type else the initial types will
             # Look as though they have lost all support as you will never find it as a final type
 
+            # I am jumping the gun here a little bit. We still need to write the code that collapses the types that have been found to be correlated above.
+            '''
+            We have another situation that we need to work on though.
+            When we have a sample that contains two final types that share at least one sequence but one is not the subset of the other and they are not correlated
+            then we need to come up with a way of calling which type it is.
+            I think a good way to do this is with discriminant anlysis
+            The code here is perfect I hope: Where X is the actaul variables, each string here represents a sample
+            with each item within the string represnting the value for each variable
+            y in this case represents the classification of the samples which in out case will be final t ypes:
+
+            import numpy as np
+            >>> from sklearn.lda import LDA
+            >>> X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
+            >>> y = np.array([1, 1, 1, 2, 2, 2])
+            >>> clf = LDA()
+            >>> clf.fit(X, y)
+            LDA(n_components=None, priors=None, shrinkage=None, solver='svd',
+              store_covariance=False, tol=0.0001)
+            >>> print(clf.predict([[-0.8, -1]]))
+
+            ther
+            '''
+
+
 def distBetweenTwoPoints(coord1, coord2):
     return math.hypot(coord2[0]-coord1[0], coord2[1]-coord1[1])
+
+def computeCutOffPerformanceParameters(cutoff):
+
+    cladeCollectionCountDict = assignCladeCollectionsPermute(cutoff)
+    assignInitialTypesPermute(cladeCollectionCountDict)
+    inferFinalSymbiodiniumTypesPermute(cutoff)
+    supportedInitialTypes, numMajs, finalTypesIdentified, unresolvedFinalTypes = calculatePerformaceParametersPermute()
+    return supportedInitialTypes, numMajs, finalTypesIdentified, unresolvedFinalTypes
+
+
+def assignCladeCollectionsPermute(cutoff):
+    # This function goes through all of the samples in the abundance list. It checks to see if the sample contains a given number of sequences (above 10% of the total sequences; or the config.args.cladeCollectionCutoff value) of each of the clades
+    # If the sample does contain sequences of this clade then it creates a list of the sequences that are above a given proportion of the sequences from that clade (currently also 10% or the config.args.cutoff value)
+    # This list forms the basis of the cladeCollection that is appended to the sample within the config.abundanceList.
+
+    # I will also count the number of cladeCollection created for each clade and put them into a dictionary
+    # I will use this information to create an intial type support
+    cladeCollectionCountDict = {clade: 0 for clade in config.args.cladeList}
+
+    for SAMPLE in config.abundanceList:
+        for CLADE in config.args.cladeList: # Sequences in the different clades are too divergent to be compared so we have to work on a cladlly separated basis, we are only working with the three main clades, A, C and D
+            totalSeqs = SAMPLE.totalSeqs
+            cladeSpecificSeqs = sum([a.abundance for a in SAMPLE.compComplement.listOfits2SequenceOccurances if a.clade == CLADE]) # Number of sequence the given sample has that are of the given clade
+            if float(cladeSpecificSeqs/totalSeqs) >= config.args.cladeCollectionCutoff:  # If this sample has a proportion of clade X creater than 10% then we will add a cladeCollection to the sample
+                cutOffValue = cladeSpecificSeqs * cutoff # config.args.cutOff is the percentage that will create the cutoff for how abundant a sequence must be in order to be used in the footprint.
+                # e.g. 0.1 means that if the sample has 300 clade A sequences, only sequences that are abundant at 30 or greater will be considered in the footprint.
+                #tempListOfits2SequenceOccurances = subset of the its2 occurances in the sample that are above the cutOff (so will make up the footprint) and are of the clade in question
+                #This list will be in the cladeCollection with normalised abundances out of 1000.
+                tempListOfits2SequenceOccurances = [its2SequenceOccurance(name=a.name, abundance=a.abundance, clade=a.clade, sequence=a.sequence) for a in SAMPLE.compComplement.listOfits2SequenceOccurances if a.abundance >= cutOffValue and a.clade == CLADE] # Need to make sure to make a copy of the sequence occurances here so that when we put them into the cladecollection we don't change the abundnaces etc. in the
+                tempTotalSeqs = sum([a.abundance for a in tempListOfits2SequenceOccurances]) # Total number of seqs in the its2sequenceoccurances that were above the cutoof for the given clade
+                # This loop here nomalises the real sequenced abundances out of 1000 so that samples that had different sequencing depths or different proportions of a given clade do not have more or less sequences.
+                i = 0
+                while i < len(tempListOfits2SequenceOccurances):
+                    tempListOfits2SequenceOccurances[i].abundance = (tempListOfits2SequenceOccurances[i].abundance/tempTotalSeqs)*1000 # Normalise the abundances to 1000
+                    i += 1
+                # Finally we add the new normalised list to the sample as a cladeCollection
+                SAMPLE.addCladeCollection(cladeCollection(CLADE, cutoff, listofseqsabovecutoff=tempListOfits2SequenceOccurances, foundwithinsample= SAMPLE.name, cladalproportion=cladeSpecificSeqs/totalSeqs))
+                cladeCollectionCountDict[CLADE] =  cladeCollectionCountDict[CLADE] + 1
+
+    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict', cladeCollectionCountDict)
+    return cladeCollectionCountDict
+
+def assignInitialTypesPermute(cladecollectioncountdict):
+    cladeCollectionCountDict = cladecollectioncountdict
+    #STEP ONE
+    #Make a list of all of the unique footprints
+    # Do this clade by clade
+    for CLADE in config.args.cladeList:
+        listOfFootprints  = []
+        for SAMPLE in config.abundanceList:
+            if SAMPLE.name == 'ADa_011' or SAMPLE.name == 'OMd_028':
+                a = 1
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE:
+                    if CLADECOLLECTION.footPrint not in listOfFootprints:
+                        listOfFootprints.append(CLADECOLLECTION.footPrint)
+        # STEP TWO
+        # For each footprint, work out whether it is a coDom and whether it is a supported type
+        # Reassign to the samples' cladeCollections that contain it.
+        for FOOTPRINT in listOfFootprints:
+            coDom = False
+            supportedType = False
+            listOfSamplesThatContainFootprint = [] # List of the sample names that have a cladeCollection that match the footprint (exactly)
+            listOfMajsForSamplesWithFootPrint = [] # List of the sequence names that are found as the predominant seqs in the footprint in question
+            for SAMPLE in config.abundanceList:
+                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                    if CLADECOLLECTION.clade == CLADE and CLADECOLLECTION.footPrint == FOOTPRINT:
+                        listOfSamplesThatContainFootprint.append(SAMPLE.name)
+                        listOfMajsForSamplesWithFootPrint.append(CLADECOLLECTION.maj)
+
+            # Ascertain whether this is a supported type and if so check to see if it is a coDom
+            # There are enough samples with this footprint to define it as a type, continue checking it for being a coDom or if there is only one seq in the footprint then this is a Maj and therefore must be a type.
+            if len(listOfSamplesThatContainFootprint) >= max(4, math.ceil(config.args.typeSupport*cladeCollectionCountDict[CLADE])) or len(FOOTPRINT) == 1:
+                supportedType = True
+                if len(set(listOfMajsForSamplesWithFootPrint)) > 1: # More than one Maj ITS2 seq: This is a coDom strictly speaking now we need to check if at least two of the Maj's (majority ITS2 sequences) are found in >= config.args.coDomSupport samples
+                    # # I don't think that there is any need for this extra conservative ruling on whether something is a coDom or not. I think we can just say that if it has two Majs then it is.
+                    # coDomSupportedMajDict = {Maj: True for Maj in set(listOfMajsForSamplesWithFootPrint)} # Create a dictionary of all of the MajITS2s found in this type/footprint and evaluate whether they are found in more than 2 samples. If the count of Trues is less than 2 at the end then this is not a codom [under our extra conservative ruling]. If more than one are above the 2 then name accordingly.
+
+                    # #This loop checks each of the Majs that have been identified for the footprint to see how many samples they have been found as Majs in.
+                    # #If they have been found in < config.args.coDomSupport number of samples then they are assigned a False in the coDomSupportedMajDict
+                    # for Maj in coDomSupportedMajDict.keys():
+                    #     if listOfMajsForSamplesWithFootPrint.count(Maj) < config.args.coDomSupport:
+                    #         coDomSupportedMajDict[Maj] = False
+
+                    # #Now do the count of False vs. True, if count of True greater than 1 then this is a CoDom and we need to work out the name
+                    # if list(coDomSupportedMajDict.values()).count(True) > 1:
+
+                    # This is a supported CoDom now name it:
+                    coDom = True
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE, listofcodommajs = list(set(listOfMajsForSamplesWithFootPrint)))
+
+                    # Put the new Type into the samples' collectionlits that have it
+                    addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+
+                    # else:
+                    # # This cannot be called a coDom and we can exit out at this point
+                    # # This is an interesting case. So here we have a type that is not considered a coDom using our conservative criteria
+                    # # But this type does have multiple MajITS2s (just not enough support for it to be considred a coDom
+                    # # This is going to cause trouble later on when we come to write out typeCharacterisation
+                    # # As we go through the MajITS2s and this type will therefore come up in two MajITS2 categories.
+                    # # We need to find away to make sure that it is only related to
+                    # # We are going to solve this problem by adding self.maj to the symbiodiniumType class when it is an initial type
+                    # # Then when we come to identify the Majs we can use the inital type majs rather than the clade collection Majs
+                    #
+                    #     newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                    #     addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+                else: # # This is cannot be called a coDom and we can exit out at this point
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                    addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+            else: # This is an unsupportedType
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                # TODO at this point there is no way of knowing whether this type is coDom or not as it is in so few samples. We may have to work this out later on.
+                # Put the new Type into the samples' collectionlits that have it
+                addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+
+
+    return
+
+def inferFinalSymbiodiniumTypesPermute(cutoff):
+    print('Running inferFinalSymbiodiniumTypes()')
+
+
+
+
+        # Search for initial type footprints within the complete complement of each sample for a given clade
+        # Get list of types that are found in the complete complement first.
+
+        # We need to be careful at this stage, the unsupported types will always fall into the original sample they came from, we need a way of checking whether these insignificant types become supported once we start to use the full complement of samples
+        # We also need to be careful because if we simply look for the most complicated type in a sample and we have a sample that has 5 unique intras that are all above the 10% mark but only 1 of them is found in a supported type then this sample will be identified as something very simple which is the one intra that it does have
+        # So if we have a sample that still has an intra present above the 10% level (of the cladal sequences) that hasn't been found in one of the types identified in it then we should call this sample unidentified.
+
+        # In order to work out if each of the initial unsupported types becomes supported once the completeComplements are checked and equally whether any of the supported types become unsupported, we need to do 3 phases
+        # At the end of this the only Type that may go unidentified by this method is one that is defined according to an intra that is almost always found below the 10% mark
+        # i.e. ST will have identifying intras below the 10% mark in at least some samples they will be above the 10% mark so we will have picked them up in our initial type anlysis
+
+        # Phase 1 - Go through all samples pushing in all types, supported and unsupported.
+        # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
+        # Phase 3 - Go through all samples and remove unsupported types then do iter comparisons of types in the sample keeping only the [type with the longest footprint of any two types that share any defining intras]*** actually we need to work through
+        # each of these scenarios carefully. If the shorter footprint fits into the longer footprint then yes only keep longer footprint. But if two footprints share intras but one doesn't fit into the other then call it unresolved for the time being.
+        # Phase 3 step 1: Check to see if they have any intras in common. Step 2: is ask if one is subset of the other.
+
+        # Probably if they share intras but one doesn't fit in the other then we should keep both types. We would then have to spit the final proportion of the types between the two.
+        # The above is impossible to resolve. Consider the three type foot prints [1,2,3], [1,4,5] and [7,4,6] you can see the problem. firt two share the 1 second two share the 4 but can't make a type of all three as first and third do not share any. So lump them all into one list and make a super unresolved Symbiodinium type of them. Not ideal but can't see any other way at current.
+
+        # Phase 4 - Finally if not all intras found at >10% (the defined cutoff) of the cladal sequences in a sample then consider this sample unidentified
+        # Also, if we have a sample that still has multiple possible types in it then we need to work out what to do with it.
+        # Once all types have been identified we can add the type information (type by type to the finalTypesList) (and, list of ITS2 occurances found only in the types)
+
+        # Keeping all of the inital types, both supported and unsupported creates a real mess at the end with lots of types present.
+        # If we end up finding that an inital type supported by say one sample that has three defining intras gets lots of suppot when we feed in all sequences in it
+        # The problem is that as the third intra is probably found in most samples at a very low level it is likely that there will be many samples that do belong to this type but don't contain the intra
+        # So rather we want to classify more conservaively. So I think that the inital idea of having supported types only considered is a good one. This then plays along a conservative feel
+        # this also plays back to the central assumption here that a footprint found many times is less likely to be due to multiple types and rather due to a single given type.
+        # I think that it is perhaps a good idea at this point to use a relative cut-off for the support that we require instead of an arbitrary number e.g. 4.
+        # I think that we should do say 1% of the number of clade collections we have for a given clade. So if we have 600 samples that have a
+        # clade C collection then we should have a minimum type support of 6
+
+        ###### START
+        # Get a list of all of the intial supported Symbiodinium types that have unique footprints
+    for CLADE in config.args.cladeList:
+        footprintList = []
+        typeList = []
+        typeCountDict = {}
+        for SAMPLE in config.abundanceList:
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE:
+                    if CLADECOLLECTION.initialType.footPrint not in footprintList and CLADECOLLECTION.initialType.supportedType:
+                            footprintList.append(CLADECOLLECTION.initialType.footPrint)
+                            typeList.append(CLADECOLLECTION.initialType) # We want to keep the actual type class rather than just the frozenset footprint because we want to be able to work out abundances etc. later on
+
+
+        # Phase 1 - Go through all samples pushing in all supported types.
+        # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
+        # If there are no further types then we don't have a finaltypecladecollectionlist
+        for SAMPLE in config.abundanceList:
+            if SAMPLE.name == 'OMd_028' and CLADE == 'D':
+                a = 5
+            finalTypesList = []
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE: # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
+                    listOfIntrasInSample = [occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if occurance.clade == CLADE]
+                    for TYPE in typeList:
+                        if TYPE.footPrint.issubset(listOfIntrasInSample): #  Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
+                            # I don't think we need to do this count any more
+                            # # Update type count dictionary and add this type to the sample's finalTypesList
+                            # if TYPE not in typeCountDict.keys():
+                            #     typeCountDict[TYPE] = 1
+                            # else:
+                            #     typeCountDict[TYPE] = typeCountDict[TYPE] + 1
+                            finalTypesList.append(TYPE)
+                    # If we have identified types for the final type clade collection list then add the types here
+                    # However, if we have not identified a type we will call the Maj its type e.g. sample OMd_028 who's foot print is D4-Otu4554-Otu3721
+                    # but this is not supported and there is no D4 on its own supported type so in this case we will add the final type as D4 alone.
+                    # beacuse this type does not take into account the Otu4554 or Otu3721 this finaltypecladecollection the FINALTYPECLADECOLLECTION.identified will be False
+                    # Or maybe we just leave the final type empty and then don't plot it
+                    if len(finalTypesList) > 0:
+                        SAMPLE.finalTypeCladeCollectionList.append(finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE, cutoff=cutoff, listOfFinalTypes=finalTypesList))
+
+
+        # Phase one and two are complete here. Time for phase three
+
+
+        # Phase three:  Then check to see if any of the final type footprints are sub sets of each other. Remove any that are (remove the shorter)
+
+        #Go through each sample's finaltypecladecollection for given clade
+        for SAMPLE in config.abundanceList:
+            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                if FINALTYPECLADECOLLECTION.clade == CLADE:
+                    # Now iter comparisons and get rid of those types that are subsets of others
+                    # FINALTYPECLADECOLLECTION.isMixedIdentification # If we have two final footprints that share intras but one is not a subset of the other then we do not call the type identified and this is True.
+                    listOfTypesToGetRidOf = []
+                    for a,b in itertools.combinations(FINALTYPECLADECOLLECTION.listOfFinalTypes, 2):
+                        if len([intra for intra in a.footPrint if intra in b.footPrint]) > 0: # Are any of a's intras found in b? Then the two footprints share at least one intra i.e. one may include the other
+                            if a.footPrint.issubset(b.footPrint): # Then we need to get rid of a
+                                if a not in listOfTypesToGetRidOf:
+                                    listOfTypesToGetRidOf.append(a)
+                            elif b.footPrint.issubset(a.footPrint): # Then we need to get rid of b
+                                if b not in listOfTypesToGetRidOf:
+                                    listOfTypesToGetRidOf.append(b)
+                            else: # Here we have a scenario where the two footprints share intras but one is not a subset of the other
+                                FINALTYPECLADECOLLECTION.isMixedIdentification = True
+                    for TYPE in listOfTypesToGetRidOf:
+                        FINALTYPECLADECOLLECTION.listOfFinalTypes.remove(TYPE)
+
+                    # Once all of the unsupported (both by abundance and subsets) TYPES have been removed check to see if all of the samples > cutoff
+                    # (for a given clade) intras are accounted for within the list of types identified
+
+                    # e.g. if an inital type of D1-D7 that was unsupported
+                    # end up as a final type of D1, then the D7 component of this symbiont has not been taken into account in the final type call
+                    # in this case FINALTYPECLADECOLLECTION.identified would be FALSE
+                    for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                        if CLADECOLLECTION.clade == CLADE: # Then this is the clade in questions cladeCollection and we can use the its2 occurances in this as the list of intras found at above the config.args.cutOff
+                            # If True then all of the intras above the config.args.cutOff have been accounted for with the final types.
+                            # FINALTYPECLADECOLLECTION.typeBasedCompCollection() returns a list of all of the seqs in all of the types in the final type list
+                            if set([A.name for A in CLADECOLLECTION.listOfSeqsAboveCutOff]).issubset(FINALTYPECLADECOLLECTION.typeBasedCompCollection()): #and not FINALTYPECLADECOLLECTION.isMixedIdentification: # TODO consider the three type foot prints [1,2,3], [1,4,5] and [7,4,6] you can see the problem
+                                FINALTYPECLADECOLLECTION.identified = True
+                            else:
+                                FINALTYPECLADECOLLECTION.identified = False
+
+
+                            # Currently the types are written in the listOfFinalTypes as INITIAL types.
+                            # So we go through each of the types and we write it out properly as a Final Type to the listOfFinalTypes
+                            # I have replaced the typesupport value here with None rather than the typesupportDict that I had been making earlier. I don't see the point of this count.
+                            i = 0
+                            while i < len(FINALTYPECLADECOLLECTION.listOfFinalTypes):
+                                FINALTYPECLADECOLLECTION.listOfFinalTypes[i] = symbiodiniumType(clade=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].clade, footPrint=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].footPrint, maj=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].maj, listofcodommajs=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].listofcodommajs, coDom=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].coDom, typeOfType='FINAL', totalSeqs=SAMPLE.totalSeqs, typeSupport=None, listofoccurences=SAMPLE.compComplement.listOfits2SequenceOccurances, name=FINALTYPECLADECOLLECTION.listOfFinalTypes[i].name)
+                                i += 1
+                            break # Break out of the for that checks to see if finaltypecladecollection is identified
+                    break # Break out of the very first if loop that identifies a finaltypecladecollection of the given clade as there is only one per clade
+    return
+
+def addTypeToSamplesPermute(newSymType, listOfSamplesThatContainFootprint):
+    for SAMPLE in config.abundanceList:
+         if SAMPLE.name in listOfSamplesThatContainFootprint:
+             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                 if CLADECOLLECTION.clade == newSymType.clade and CLADECOLLECTION.footPrint == newSymType.footPrint: # Then this is a cladeCollection that we want to add the new Symbiodinium Type to
+                    # We are going to add the new type to the sample. However we are going to add it as a new instance of the type so that we can have different sortedDefiningITSwOccurance for each sample
+                    # if we add exactly the same occurance of the type to multiple samples then when we change one it will change them all.
+                    # E.g. if we change the sortedDefining... for one of the samples it will automatically be changed in all of the samples with that type.
+                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, supportedType=newSymType.supportedType, listofcodommajs=newSymType.listofcodommajs))
+                    # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
+                    CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
+    return
+
+def calculatePerformaceParametersPermute():
+    # Number of initial supported types identified
+    collectionOfMajs = []
+    collectionOfInitialTypes = []
+    # A total so that we can work out proportions
+    numberOfCladeCollections = 0
+    # Number of final type clade collections that have final types in them
+    numberOfCladeCollectionsWithFinalTypes = 0
+    # I'm gonna keep this super simple and say if any of the types share defining intras then we have an unresolved
+    numberOfFinalTypeCladeCollectionUnsolved = 0
+
+    for SAMPLE in config.abundanceList:
+        for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+            numberOfCladeCollections += 1
+            if CLADECOLLECTION.maj not in collectionOfMajs:
+                collectionOfMajs.append(CLADECOLLECTION.maj)
+            if CLADECOLLECTION.initialType.supportedType and CLADECOLLECTION.initialType.name not in collectionOfInitialTypes:
+                collectionOfInitialTypes.append(CLADECOLLECTION.initialType.name)
+
+        for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+            unresolved = False
+            numberOfCladeCollectionsWithFinalTypes += 1
+            if len(FINALTYPECLADECOLLECTION.listOfFinalTypes) > 1: # THere must be at least two types for us to find an unsolved finaltypecladecollection
+                for finalType1, finalType2 in itertools.combinations(FINALTYPECLADECOLLECTION.listOfFinalTypes,2):
+                    for definingIntras in [a[0] for a in finalType1.sortedDefiningIts2Occurances]:
+                        if definingIntras in [a[0] for a in finalType2.sortedDefiningIts2Occurances]:
+                            unresolved = True
+            if unresolved == True:
+                numberOfFinalTypeCladeCollectionUnsolved += 1
+
+    return len(collectionOfInitialTypes), len(collectionOfMajs), numberOfCladeCollectionsWithFinalTypes/numberOfCladeCollections, numberOfFinalTypeCladeCollectionUnsolved/numberOfCladeCollectionsWithFinalTypes
+
+def clearConfigAbundanceList():
+    for SAMPLE in config.abundanceList:
+        del SAMPLE.cladeCollectionList[:]
+        del SAMPLE.finalTypeCladeCollectionList[:]
 
 ## MAIN FUNCTION ##
 def CreateHumeFstMatrices():
@@ -1676,6 +1900,34 @@ def CreateHumeFstMatrices():
         # There is also an intraAbundanceDict which is simply a dict of sequence name to abundance
     config.__init__()
 
+
+    '''
+    Here I am going to implement an interation of the defining of the clade collections, inital types and final types
+    with different cutoff values for which abundance of seqs are used in the definition of the inital types.
+    I will calculate the number of types established, the proortion of final cladal collections which do not have final
+    types and the proportion of finalcladecollections that have multiple final types that have the same majority.
+    I will plot these performance parameters again the cutoff value and hopefully I will be able to work out
+    a cutoff from these results which will allow me to dynamically select an appropriate cutoff value for the given
+    dataset.
+    '''
+
+    # Implement a master loop for each of the cutoff values to be tested
+    if config.args.conductDynamicCutoffAnalysis:
+        print('Permuting defining sequence cutoffs')
+        # emptyHolderCopyOfAbundnaceList = deepcopy(config.abundanceList)
+        performanceParametersList = []
+        for CUTOFF in np.arange(0.2, 0.00, -0.01):
+            print('Permuting {0} cutoff'.format(CUTOFF))
+            #TODO rather than doing this deepcopy business try writing simple loop that clears out the config.abundanceList
+            # config.abundanceList = deepcopy(emptyHolderCopyOfAbundnaceList)
+            p1, p2, p3, p4 = computeCutOffPerformanceParameters(CUTOFF)
+            performanceParametersList.append(['{0}.2f'.format(CUTOFF) , p1, p2, p3, p4])
+            clearConfigAbundanceList()
+        # At this point we have computed all of the parameters we need to write the list out for plotting
+        write2DListToDestination(config.args.saveLocation + '/performanceParameters/performanceParameters.txt', performanceParametersList)
+        #TODO create a function that chooses the best cut off value from the information gained above
+    # Here we put congif.abundanceList back to the empty copy for the last time
+
     # For each sample this assigns the cladeCollections. For each sample, for each clade, the program looks
     # to see if the given sample contains more than the args.cladeCollectionCutOff percentage of sequences from a given clade.
     # If it does then it will make a cladeCollection which is a subselection of the ITS2 sequences that that sample
@@ -1683,7 +1935,23 @@ def CreateHumeFstMatrices():
     # args.cutOff relative to the number of sequences found in that sample for the clade in question.
     # E.g. if there are 300 clade A seqs out of a total seqs of 1000 then clade A seqs that were returned at an abundnace greater or equal to 30
     # (if the args.cutOff is set to 0.1) will be put into the clade A cladeCollection for that sample
-    cladeCollectionCountDict = assignCladeCollections()
+    cladeCollectionCountDict = None
+    print('Beginning clade collection assignment')
+    if config.args.developingMode:
+        try:
+            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListCladeCollectionAssigned')
+            cladeCollectionCountDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict')
+        except:
+            print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
+            cladeCollectionCountDict = assignCladeCollections()
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                              'abundanceListCladeCollectionAssigned', config.abundanceList)
+    else:
+        cladeCollectionCountDict = assignCladeCollections()
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'abundanceListCladeCollectionAssigned', config.abundanceList)
+    print('Clade collection assigned')
+
 
     # For each cladeCollection that is assigned to a sample, an itital type is assigned using the subset of sequences in that cladeCollection.
     # They are treated as a footprint. For every given footprint we look to see which other samples contain that footprint.
@@ -1695,41 +1963,19 @@ def CreateHumeFstMatrices():
     # If the type is a coDom we add the coDomSupportedMajDict which is a dictionary containing the name of the ITS2 seqs that are
     # MajITS2 seqs as key and true or false depending on whether they were found in > args.coDomSupport number of
     # samples as True or False to the instance of the Symbiodiniumtype class
-    assignInitialTypes(cladeCollectionCountDict)  # This now assigns initial types to the samples' cladeCollections
+    print('Assigning initial types')
+    if config.args.developingMode:
+        try:
+            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned')
+        except:
+            print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
+            assignInitialTypes(cladeCollectionCountDict)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned', config.abundanceList)
+    else:
+        assignInitialTypes(cladeCollectionCountDict)  # This now assigns initial types to the samples' cladeCollections
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'abundanceListInitialTypesAssigned', config.abundanceList)
     print('Assigned initial types')
-
-    #Create masterSeqDistancesDict
-    #This is a dictionary that has the genetic distances between every combination of sequences from the same clade.
-    # The keys are frozensets so that the order in which you look for the two sequences doesn't matter. The value is the genetic distance
-    masterSeqDistancesDict = None
-    if config.args.createMasterSeqDistancesFromScratch == False:
-        try:
-            masterSeqDistancesDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict')
-        except:
-            print('Missing Object: masterSeqDistancesDict  not found in specified directory\n Creating from scratch...')
-    if masterSeqDistancesDict == None:
-        masterSeqDistancesDict = createMasterSeqDistancesNonMothur()
-        # masterSeqDistancesDict = {frozenset(a.split(' ')[:-1]): float(a.split(' ')[2]) for a in masterSeqDistances}
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects','masterSeqDistancesDict', masterSeqDistancesDict)
-    print('MasterSeqDistances created')
-
-    # This logTransedColDists is the Fst values between all combinations of samples that have cladeCollections of the same clade.
-    # The abundances for the sequences found within each clade collection for each sample are first log transformed so that
-    # the influence of rarer sequences within the footprint on the final Fst score is increased relative to their abundance.
-    # This way we get a better resolution between very similar footprints that only differ by rarer sequences
-    # These Fst distances are calculated only using the sequences that were found above the cutoff, i.e. on initial types not on final types
-    logTransedColDists = None
-    if config.args.createFstColDistsFromScratch == False:
-        try:
-            logTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                                                    'logTransedColDists')
-        except:
-            messagebox.showwarning('Missing Object',
-                                   'logTransedColDists object not found in specified directory\n Creating from scratch...')
-    if logTransedColDists == None:
-        logTransedColDists = createLogTransedFstColDists(masterSeqDistancesDict)
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'logTransedColDists', logTransedColDists)
-    print('Calculated Fsts')
 
     ######
     # At this point we have the initial types identified. We also have the fst values identified which are what we need for the graphical outputs.
@@ -1749,22 +1995,81 @@ def CreateHumeFstMatrices():
     # Once we have knocked out unsupported types or types that are subsets of others we finaltypecladecollection.identified to either True or False
     # depending on whether all of the intras found above the config.args.cutOff have been identified by the types in the finalTypeCladeCollection.listOfFinalTypes
     # and there is no conflict between footprints that share intras but are not subsets.
-    inferFinalSymbiodiniumTypes()
+    print('Infering final symbiondinium types')
+    if config.args.createMasterSeqDistancesFromScratch == False or config.args.developingMode:
+        try:
+            config.abundanceList = readByteObjectFromDefinedDirectory(
+                config.args.saveLocation + r'\serialized objects', 'abundanceListWithFinalTypes')
+        except:
+            print(
+                'Missing Object: abundanceListWithFinalTypes  not found in specified directory\n Creating from scratch...')
+            inferFinalSymbiodiniumTypes()
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                              'abundanceListWithFinalTypes', config.abundanceList)
+    else:
+        inferFinalSymbiodiniumTypes()
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'abundanceListWithFinalTypes', config.abundanceList)
+    print('Final type inference complete')
+
+
+    #Create masterSeqDistancesDict
+    #This is a dictionary that has the genetic distances between every combination of sequences from the same clade.
+    # The keys are frozensets so that the order in which you look for the two sequences doesn't matter. The value is the genetic distance
+    masterSeqDistancesDict = None
+    print('Calculating sequence distances')
+    if config.args.createMasterSeqDistancesFromScratch == False or config.args.developingMode:
+        try:
+            masterSeqDistancesDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict')
+        except:
+            print('Missing Object: masterSeqDistancesDict  not found in specified directory\n Creating from scratch...')
+            masterSeqDistancesDict = createMasterSeqDistancesNonMothur()
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects','masterSeqDistancesDict', masterSeqDistancesDict)
+    else:
+        masterSeqDistancesDict = createMasterSeqDistancesNonMothur()
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict',
+                                          masterSeqDistancesDict)
+    print('Sequence distance calculation complete')
+
+    # # This logTransedColDists is the Fst values between all combinations of samples that have cladeCollections of the same clade.
+    # # The abundances for the sequences found within each clade collection for each sample are first log transformed so that
+    # # the influence of rarer sequences within the footprint on the final Fst score is increased relative to their abundance.
+    # # This way we get a better resolution between very similar footprints that only differ by rarer sequences
+    # # These Fst distances are calculated only using the sequences that were found above the cutoff, i.e. on initial types not on final types
+    # logTransedColDists = None
+    # if config.args.createFstColDistsFromScratch == False:
+    #     try:
+    #         logTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+    #                                                                 'logTransedColDists')
+    #     except:
+    #         messagebox.showwarning('Missing Object',
+    #                                'logTransedColDists object not found in specified directory\n Creating from scratch...')
+    # if logTransedColDists == None:
+    #     logTransedColDists = createLogTransedFstColDists(masterSeqDistancesDict)
+    #     writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'logTransedColDists', logTransedColDists)
+    # print('Calculated Fsts')
+
+
+
 
     finalLogTransedColDists = None
-    if config.args.createFinalFstColDistsFromScratch == False:
+    print('Calculating Fst distances')
+    if config.args.createFinalFstColDistsFromScratch == False or config.args.developingMode:
         try:
             finalLogTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                                                     'finalLogTransedColDists')
         except:
             print('Missing Object: finalLogTransedColDists not found in specified directory\n Creating from scratch...')
-    if finalLogTransedColDists == None:
+            finalLogTransedColDists = createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'finalLogTransedColDists',
+                                              finalLogTransedColDists)
+    else:
         finalLogTransedColDists = createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict)
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'finalLogTransedColDists',
                                           finalLogTransedColDists)
-    print('Calculated Final Fsts')
+    print('Fst distances calculated')
 
-    # finalLogTransedColDists = createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict)
+
 
     ######
     # At this point we have the initial and final types identified as well as their supports. We also have the fst values identified which are what we need for the graphical outputs.
@@ -1775,7 +2080,23 @@ def CreateHumeFstMatrices():
     # Write out the graphics so that the writeTypeBasedOutput can write them into the html
     # This produces plots for cladal and subcladal/maj levels
     # For the cladal it produces both a Pareto and a 2D PC ordination of the calculated Fst values
-    producePlots(finalLogTransedColDists)
+    print('Producing plots')
+    if config.args.developingMode:
+        try:
+            config.abundanceList = readByteObjectFromDefinedDirectory(
+                config.args.saveLocation + r'\serialized objects', 'abundanceListAfterPlotCreation')
+        except:
+            print(
+                'Missing Object: abundanceListAfterPlotCreation  not found in specified directory\n Creating from scratch...')
+            producePlots(finalLogTransedColDists)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                              'abundanceListAfterPlotCreation', config.abundanceList)
+    else:
+        producePlots(finalLogTransedColDists)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'abundanceListAfterPlotCreation', config.abundanceList)
+
+
 
 
     # This simply creates a list that is the start of the html eventual outputfile
@@ -1794,6 +2115,8 @@ def CreateHumeFstMatrices():
     htmlOutput.extend(writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict))
     # Add the closing tags to the html file
     closeAndWriteHtmlHolder(htmlOutput)
+
+
     
     if config.args.deleteIntermediateFiles:
         print('Deleting intermediate files')
