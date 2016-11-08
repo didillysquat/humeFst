@@ -45,7 +45,7 @@ def __init__():
     parser.add_argument('--archiveInputs', action='store_true', help='When finished, compress input files into a .zip, and delete originals')
     
     # Caching
-    parser.add_argument('--developingMode', type = bool, default =True, metavar='TRUE|FALSE')
+    parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
     parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
@@ -123,8 +123,8 @@ def __init__():
         except:
             print('Missing Object: abundanceList not found in specified directory\n Creating from scratch...')
     if abundanceList == None:
-        abundanceList = createAbundnanceListMainMPRaw()
-        abundanceList = sorted(abundanceList, key=lambda x: x.name)
+        abundanceList = {SAMPLE.name: SAMPLE for SAMPLE in createAbundnanceListMainMPRaw()}
+        # abundanceList = sorted(abundanceList, key=lambda x: x.name)
         writeByteObjectToDefinedDirectory(args.saveLocation + r'\serialized objects','abundanceList', abundanceList)
     print('Completed config init')
 

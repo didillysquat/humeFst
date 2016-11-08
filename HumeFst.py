@@ -214,7 +214,8 @@ def createMatrixFromColDists(Fstcoldistdict):
     FstMatrixCollection = []
     for CLADE in config.args.cladeList:
         listOfSamples = [] # [[cladeCollection.foundWithinSample for cladeCollection in sample.cladeCollectionList if cladeCollection.clade == CLADE] for sample in abundanceList] # All samples whether they have a type defined or not, then we can display the unsupported in R
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
                     listOfSamples.append(CLADECOLLECTION.foundWithinSample)
@@ -249,7 +250,8 @@ def createFinalMatrixFromColDists(Fstcoldistdictsecond):
     FstMatrixCollection = []
     for CLADE in config.args.cladeList:
         listOfSamples = [] # [[cladeCollection.foundWithinSample for cladeCollection in sample.cladeCollectionList if cladeCollection.clade == CLADE] for sample in abundanceList] # All samples whether they have a type defined or not, then we can display the unsupported in R
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE and FINALTYPECLADECOLLECTION.identified:
                     listOfSamples.append(FINALTYPECLADECOLLECTION.foundWithinSample)
@@ -312,12 +314,16 @@ def createFstColDists(cladeCollectionList, masterSeqDistancesDict):
 def writeTypeBasedOutput2():
     print('Conducting type-based analysis')
     #23/08/16
+    #TODO
+    # We have replaced the need for both of the inital support and final support dicts by creating the typeDB
+    # We can now use len(typeDB[type].foundininitial)
 
     # We will go through each of the samples' cladeCollections by clade.
     # We will count how many samples each type is found in both as an initial and a final
     initialSupportDict = {}
     finalSupportDict = {}
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         # Count support for inital types both unsupported and supported
         # We need to have a count for the unsupported types too as these will still be written out
         # when we are writing the sample based output
@@ -364,7 +370,8 @@ def writeTypeBasedOutput2():
         collectionOfNonCoDomMajs = {}
         collectionOfIdentifiedSamples = []
         cladeSpecificInitialSupportDict = {}
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE and CLADECOLLECTION.initialType.supportedType:
                     if CLADECOLLECTION.initialType.name not in cladeSpecificInitialSupportDict.keys():
@@ -520,7 +527,8 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
     # The values from this dict will then be used by adding them (some values will be negative) to the intial support to get the final support
     changeInFinalSupportOfInitialTypeDict = {}
     initialSupportOfInitialTypesDict = {} # This will be used in the next method key = footprint, value = initial support
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         for CLADE in config.args.cladeList:
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
@@ -550,7 +558,8 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
         nonCoDomTypes = []
         numSamples = 0
 
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for cladeCollection in SAMPLE.cladeCollectionList:
                 if cladeCollection.clade == CLADE: # Then this is a sample with a cladeCollection within the given clade
                     numSamples += 1
@@ -580,7 +589,8 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
             for MAJ in orderedCollectionOfNonCoDomSupportedTypeMajs: # For each supported Maj that contains types for the given clade in order of abundance
                 # Num of Types within maj
                 listOfNonCoDomTypesWithinMaj = []
-                for SAMPLE in config.abundanceList:
+                for SAMPLEKEY in config.abundanceList.keys():
+                    SAMPLE = config.abundanceList[SAMPLEKEY]
                     for cladeCollection in SAMPLE.cladeCollectionList:
                         if not cladeCollection.initialType.coDom and cladeCollection.initialType.maj == MAJ and cladeCollection.initialType.supportedType:
                             listOfNonCoDomTypesWithinMaj.append(cladeCollection.initialType)
@@ -654,7 +664,8 @@ def producePlots(coldists):
         #### STEP ONE
         # Firstly write out a cladal Matrice before looking to do the Maj-based matrices
         listOfSamples = [] # A list of samples with cladeCollections of the given clade. i.e. all samples that will be represented in the majPlot
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             # for CLADECOLLECTION in SAMPLE.cladeCollectionList:
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 # if CLADECOLLECTION.clade == CLADE:
@@ -672,7 +683,8 @@ def producePlots(coldists):
             # I am going to collect the Majs for each cladeCollection in each sample irrespective of whether they are a codom or not.
             # I will do this by creating one dictionary which has the Maj as the key and a list of samples that have that as a Maj as the value
             majToSamplesDict = {}
-            for SAMPLE in config.abundanceList:
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == CLADE:
                         if SAMPLE.name == 'OMd_028' and CLADE == 'D':
@@ -767,7 +779,8 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
 
         # D) Create the info list
         infoList = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name in listOfSamples:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == clade:
@@ -801,7 +814,8 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
 
         # D) Create the info list which will contain data on sample name, host, reef, region etc.
         infoList = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name in listOfSamples:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == clade:
@@ -860,7 +874,8 @@ def createLogTransedFstColDists(masterSeqDistancesDict):
     for CLADE in config.args.cladeList: # For each clade
         tempColDist = []
         listOfCladeCollections = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
                     listOfCladeCollections.append(CLADECOLLECTION)
@@ -888,7 +903,8 @@ def createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict):
     for CLADE in config.args.cladeList:  # For each clade
         tempColDist = []
         listOfFinalCladeCollections = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if (SAMPLE.name == 'ADa_011' or SAMPLE.name == 'OMd_028') and CLADE == 'D':
                 a = 1
             for FINALCLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
@@ -975,14 +991,15 @@ def getAllDefiningIts2OccurancesOne(finalTypeCladeCollectionA):
 
     return allDefiningIts2OccurancesA
 
-def assignInitialTypes(cladecollectioncountdict):
+def assignInitialTypesOld(cladecollectioncountdict):
     cladeCollectionCountDict = cladecollectioncountdict
     #STEP ONE
     #Make a list of all of the unique footprints
     # Do this clade by clade
     for CLADE in config.args.cladeList:
         listOfFootprints  = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name == 'ADa_011' or SAMPLE.name == 'OMd_028':
                 a = 1
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
@@ -992,6 +1009,8 @@ def assignInitialTypes(cladecollectioncountdict):
         # STEP TWO
         # For each footprint, work out whether it is a coDom and whether it is a supported type
         # Reassign to the samples' cladeCollections that contain it.
+        unsupportedTypeList = {}
+        supportedList = []
         for FOOTPRINT in listOfFootprints:
             if FOOTPRINT == frozenset({'Otu0003'}):
                 a=5
@@ -999,7 +1018,8 @@ def assignInitialTypes(cladecollectioncountdict):
             supportedType = False
             listOfSamplesThatContainFootprint = [] # List of the sample names that have a cladeCollection that match the footprint (exactly)
             listOfMajsForSamplesWithFootPrint = [] # List of the sequence names that are found as the predominant seqs in the footprint in question
-            for SAMPLE in config.abundanceList:
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == CLADE and CLADECOLLECTION.footPrint == FOOTPRINT:
                         listOfSamplesThatContainFootprint.append(SAMPLE.name)
@@ -1024,8 +1044,8 @@ def assignInitialTypes(cladecollectioncountdict):
 
                     # This is a supported CoDom now name it:
                     coDom = True
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE, listofcodommajs = list(set(listOfMajsForSamplesWithFootPrint)))
-
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE, listofcodommajs = list(set(listOfMajsForSamplesWithFootPrint)))
+                    supportedList.append(newSymbiodiniumType.footPrint)
                     # Put the new Type into the samples' collectionlits that have it
                     addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
 
@@ -1042,26 +1062,224 @@ def assignInitialTypes(cladecollectioncountdict):
                     #     newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
                     #     addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
                 else: # # This is cannot be called a coDom and we can exit out at this point
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
                     addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+                    supportedList.append(newSymbiodiniumType.footPrint)
             else: # This is an unsupportedType
-                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
-                # TODO at this point there is no way of knowing whether this type is coDom or not as it is in so few samples. We may have to work this out later on.
+                # newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                unsupportedTypeList[newSymbiodiniumType.footPrint] = listOfSamplesThatContainFootprint
+
+
                 # Put the new Type into the samples' collectionlits that have it
-                addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+                # addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
+        if len(unsupportedTypeList) > 1:
+            searchForFurtherInitialsAgain(unsupportedTypeList = unsupportedTypeList, reqsupport=max(4, math.ceil(config.args.typeSupport*cladeCollectionCountDict[CLADE])))
+            a = 5
+
+    return
+
+def assignInitialTypes(cladecollectioncountdict):
+    cladeCollectionCountDict = cladecollectioncountdict
+    #STEP ONE
+    #Make a list of all of the unique footprints
+    # Do this clade by clade
+    for CLADE in config.args.cladeList:
+        footPrintDict  = {}
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            for i in range(len(SAMPLE.cladeCollectionList)):
+                CLADECOLLECTION = SAMPLE.cladeCollectionList[i]
+                if CLADECOLLECTION.clade == CLADE:
+                    if CLADECOLLECTION.footPrint not in footPrintDict.keys():
+                        footPrintDict[CLADECOLLECTION.footPrint] = [[SAMPLE.name], [CLADECOLLECTION.maj]]
+                    else:
+                        footPrintDict[CLADECOLLECTION.footPrint][0].append(SAMPLE.name)
+                        footPrintDict[CLADECOLLECTION.footPrint][1].append(CLADECOLLECTION.maj)
+        if len(footPrintDict) > 0:
+            collapsedFootPrintDict = searchForFurtherInitialsAgain(unsupportedTypeList = footPrintDict, reqsupport=max(4, math.ceil(config.args.typeSupport*cladeCollectionCountDict[CLADE])))
+
+
+        for FOOTPRINT in collapsedFootPrintDict.keys():
+            # Check that the majs have been called correctly: in one case we had a maj that wasn't part of the footprint due to the collapsing
+            if not set(collapsedFootPrintDict[FOOTPRINT][1]).issubset(set(FOOTPRINT)):
+                # Then we have a problem with at least one of the majs that has been called
+                # We need to redo the maj's
+                newMajList = []
+                for SAMPLESIN in collapsedFootPrintDict[FOOTPRINT][0]:
+                    for CLADECOLLECTION in config.abundanceList[SAMPLESIN].cladeCollectionList:
+                        if CLADECOLLECTION.clade == CLADE:
+                            for intraOrdered in CLADECOLLECTION.listOfSeqsAboveCutOff:
+                                if intraOrdered.name in FOOTPRINT:
+                                    newMajList.append(intraOrdered.name)
+                                    break
+                collapsedFootPrintDict[FOOTPRINT][1] = newMajList
+            if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
+                coDom = True
+                # TODO create the type and assign to the sample(s)
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1], listofcodommajs=list(set(collapsedFootPrintDict[FOOTPRINT][1])))
+                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                typeDB.addType(newSymbiodiniumType)
+
+            else:
+                coDom = False
+                # TODO create the type and assign to the sample(s)
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
+                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                typeDB.addType(newSymbiodiniumType)
+        a = 5
 
 
     return
 
+def chDict(value, dict):
+    if value in dict.keys():
+        return dict[value]
+    else:
+        return 0
+
+def searchForFurtherInitialsAgain(unsupportedTypeList, reqsupport):
+
+
+    # I'm going for an end n of 3 here so that at most we try to collapse footprints that are three long into twos
+    # I don't think we want to be collapsing footprints containing only two intras
+    for n in range(max([len(keyName) for keyName in unsupportedTypeList.keys()]), 2, -1):
+        collapseDict = {}
+        # This gets a list of the largest footprints that need collapsing. It takes into account that since the
+        # start of analysis they may have had other footprints collapsed into them and as such may
+        # now be associated with enough samples to put the footprint above the reqsupport. In this case they will
+        # be left out of the largestFootprintList and as such excluded from collapsing
+        largestFootprintList = [keyName for keyName in unsupportedTypeList.keys() if len(keyName) == n and len(unsupportedTypeList[keyName][0]) < reqsupport]
+        if largestFootprintList:
+            for bigFootprint in largestFootprintList:
+                for N in range(n,2,-1):
+                    nextlargestFootprintList = [keyName for keyName in unsupportedTypeList.keys() if len(keyName)== N - 1]
+                    if nextlargestFootprintList:
+                        topScore = 0
+                        for smallerFootprint in nextlargestFootprintList:
+                            if set(smallerFootprint).issubset(set(bigFootprint)):
+                                score = len(unsupportedTypeList[bigFootprint][0]) + len(unsupportedTypeList[smallerFootprint][0])
+                                if score > topScore:
+                                    topScore = score
+                                    collapseDict[bigFootprint] = smallerFootprint
+
+                        # Once we have checked the big foot print against all of the next smallest footprint we need to
+                        # assess whether we have found a seq for it to collapse into. If we have then great, we have a
+                        # note of this and it is onto the next big footprint for us. If not then we need to check the next
+                        # biggest footprints etc. etc. until we find one to collapse into. If we don't find one to collapse into
+                        # then we remove the footprint from the list and the associated samples will not have an intial supported
+                        # types associated with them.
+                        if topScore != 0:
+                            break
+            # Here we have finished going through each of the big footprints
+            #TODO maybe don't remove them: if we leave them in then we can add their samples to the maj type when we process the twos below
+            # This can be considered a conservative type assignment to the footprints with many intras that cannot be clustered into any other type.
+            # # Remove anyfootprints from the unsupportedTypeList that have not found a footprint to collapse to
+            # for i in range(len(largestFootprintList)):
+            #     if largestFootprintList[i] not in collapseDict.keys():
+            #         del unsupportedTypeList[largestFootprintList[i]]
+            # Collapse the largest footprints that have associated footprints identified
+            for footPrintToCollapse in collapseDict.keys():
+                unsupportedTypeList[collapseDict[footPrintToCollapse]] = [unsupportedTypeList[collapseDict[footPrintToCollapse]][0] + unsupportedTypeList[footPrintToCollapse][0], unsupportedTypeList[collapseDict[footPrintToCollapse]][1] + unsupportedTypeList[footPrintToCollapse][1]]
+                del unsupportedTypeList[footPrintToCollapse]
+    '''At this point we have collapsed all but the twos. The twos pose an interesting question.
+    We have the opportunity here to assign the single intra Majs as inital types to the remaining samples with
+    unidentified types.  If we go through all of the two footprints and take out the intras counting as we go we can
+    create an intra count dict. Then if we go back through the two footprints and associate their samples to the intra
+    that has the most support in the counts dict. I'm honestly not sure how this will effect the typing over all but
+    I think it it probably a fair and sensible thing to do.
+    '''
+    # Create a count dict of all of the intras in the unsupported types that have foot prints that are len(two)
+    # I am goign to upgrade this so that it works for all footprints that didn't manage to cluster to reach
+    # the required level of support
+    # intraAbundanceDict = {}
+    collectionOfUnsupportedFootprints = [tuples for tuples in unsupportedTypeList.items() if len(tuples[1][0]) < reqsupport]
+    # for unsupportedFootprint in collectionOfUnsupportedFootprints:
+    #     for intra in unsupportedFootprint[0]:
+    #         if intra in intraAbundanceDict.keys():
+    #             intraAbundanceDict[intra] += 1
+    #         else:
+    #             intraAbundanceDict[intra] = 1
+
+    # Use the count dict to assign the samples associated with each of the unsupported two footprints to
+    # a maj type with a footprint len(one)
+    for i in range(len(collectionOfUnsupportedFootprints)):
+        # most common intra is equivalent here to high intra
+        highIntra = max(set(collectionOfUnsupportedFootprints[i][1][1]), key=collectionOfUnsupportedFootprints[i][1][1].count)
+        # highIntra = returnHigherDictValue(collectionOfUnsupportedFootprints[i], intraAbundanceDict)
+        if frozenset([highIntra]) in unsupportedTypeList.keys():
+            unsupportedTypeList[frozenset([highIntra])] = [unsupportedTypeList[frozenset([highIntra])][0] + unsupportedTypeList[collectionOfUnsupportedFootprints[i][0]][0], unsupportedTypeList[frozenset([highIntra])][1] + unsupportedTypeList[collectionOfUnsupportedFootprints[i][0]][1]]
+        else:
+            unsupportedTypeList[frozenset([highIntra])] = unsupportedTypeList[collectionOfUnsupportedFootprints[i][0]]
+        del unsupportedTypeList[collectionOfUnsupportedFootprints[i][0]]
+    return unsupportedTypeList
+
+def returnHigherDictValue(setOfThings, dictionary):
+    topscore = 0
+    for item in list(setOfThings):
+        score = dictionary[item]
+        if score > topscore:
+            topscore = score
+    for item in list(setOfThings):
+        if dictionary[item] == topscore:
+            return item
+    return 'ERROR'
+
+
+def searchForFurtherInitials(unsupportedTypeList, reqsupport, supportedtypelist):
+    # convert the frozenset footprints to plain set footprints to prevent any type confusion
+    supportedTypeList = [set(a) for a in supportedtypelist]
+    foundButAlreadySupported = []
+    foundNew = []
+    combosAlreadyTested = []
+    # Starting with n as the size of the biggest footprint
+    # Continue to n of three as we don't want to be looking for single intra footprints
+    for n in range(max([len(a[0]) for a in unsupportedTypeList]),2, -1):
+        listOfFootprintsWithLenn = [footprintTuple for footprintTuple in unsupportedTypeList if len(footprintTuple[0]) == n]
+        for footprint in listOfFootprintsWithLenn:
+            for combo in itertools.combinations(footprint[0], n-1):
+                # This should help speed up the comparisons
+                if set(combo) in combosAlreadyTested:
+                    continue
+                else:
+                    combosAlreadyTested.append(set(combo))
+                combinedSupport = footprint[1]
+                # Produces a tuple that contains each of the footprints intras
+                # compare this subset of intras footprint to all of the other footprints
+                for allFootprints in [otherfootprints for otherfootprints in unsupportedTypeList if otherfootprints[0] != footprint[0]]:
+                    one = set(combo)
+                    two = set(allFootprints[0])
+                    if set(combo).issubset(set(allFootprints[0])):
+                        # Here we have found a footprint that has additional support
+                        # We add together the supports for all such footprints and see if it comes above
+                        # the required support for a supported inital type
+                        combinedSupport += allFootprints[1]
+                if combinedSupport >= reqsupport:
+                    # Here we have found what could be a new supported initial type
+                    # Check to see if it an already defined initalType
+                    # If it is then it means all of the samples involved will find final types of that eventually.
+                    if set(combo) in supportedTypeList:
+                        foundButAlreadySupported.append(set(combo))
+                        #Let's see how this looks so far.
+                    else:
+                        # Checks to see if the found combo is a subset of any of the other footprint sets that have been found
+                        # pieceone = [setfootprints[0] for setfootprints in foundNew]
+                        # piecetwo = [set(combo).issubset(checkingfootprints) for checkingfootprints in pieceone]
+                        # if not any([set(combo).issubset(checkingfootprints) for checkingfootprints in [setfootprints[0] for setfootprints in foundNew]]):
+                        # I have relaxed the require ment of the potential type not to be a subset of any of the other potential types
+                        if set(combo) not in [setfootprints[0] for setfootprints in foundNew]:
+                            foundNew.append((set(combo), combinedSupport))
+    return foundNew
+
 def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
-    for SAMPLE in config.abundanceList:
-         if SAMPLE.name in listOfSamplesThatContainFootprint:
+    for SAMPLEKEY in listOfSamplesThatContainFootprint:
+        SAMPLE = config.abundanceList[SAMPLEKEY]
+        if SAMPLE.name in listOfSamplesThatContainFootprint:
              for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                  if CLADECOLLECTION.clade == newSymType.clade and CLADECOLLECTION.footPrint == newSymType.footPrint: # Then this is a cladeCollection that we want to add the new Symbiodinium Type to
                     # We are going to add the new type to the sample. However we are going to add it as a new instance of the type so that we can have different sortedDefiningITSwOccurance for each sample
                     # if we add exactly the same occurance of the type to multiple samples then when we change one it will change them all.
                     # E.g. if we change the sortedDefining... for one of the samples it will automatically be changed in all of the samples with that type.
-                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, supportedType=newSymType.supportedType, listofcodommajs=newSymType.listofcodommajs))
+                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, majList=newSymType.majList, listofcodommajs=newSymType.listofcodommajs))
                     # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
                     CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
@@ -1080,8 +1298,9 @@ def createMasterSeqDistancesNonMothur():
     distList = []
     for CLADE in config.args.cladeList:
         listOfNames = []
-        for sample in config.abundanceList:
-            for cladeCollection in sample.cladeCollectionList: # For each cladeCollection
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            for cladeCollection in SAMPLE.cladeCollectionList: # For each cladeCollection
                 if cladeCollection.clade == CLADE:
                     for sequenceOccurance in cladeCollection.listOfSeqsAboveCutOff:
                         if sequenceOccurance.name not in listOfNames:
@@ -1104,7 +1323,8 @@ def assignCladeCollections():
     # I will use this information to create an intial type support
     cladeCollectionCountDict = {clade: 0 for clade in config.args.cladeList}
 
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         for CLADE in config.args.cladeList: # Sequences in the different clades are too divergent to be compared so we have to work on a cladlly separated basis, we are only working with the three main clades, A, C and D
             totalSeqs = SAMPLE.totalSeqs
             cladeSpecificSeqs = sum([a.abundance for a in SAMPLE.compComplement.listOfits2SequenceOccurances if a.clade == CLADE]) # Number of sequence the given sample has that are of the given clade
@@ -1172,7 +1392,8 @@ def inferFinalSymbiodiniumTypes():
         footprintList = []
         typeList = []
         typeCountDict = {}
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
                     if CLADECOLLECTION.initialType.footPrint not in footprintList and CLADECOLLECTION.initialType.supportedType:
@@ -1183,7 +1404,8 @@ def inferFinalSymbiodiniumTypes():
         # Phase 1 - Go through all samples pushing in all supported types.
         # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
         # If there are no further types then we don't have a finaltypecladecollectionlist
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name == 'OMd_028' and CLADE == 'D':
                 a = 5
             finalTypesList = []
@@ -1214,7 +1436,8 @@ def inferFinalSymbiodiniumTypes():
         # Phase three:  Then check to see if any of the final type footprints are sub sets of each other. Remove any that are (remove the shorter)
 
         #Go through each sample's finaltypecladecollection for given clade
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE:
 
@@ -1326,7 +1549,8 @@ def writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict):
     # This is going to be going sample by sample
     outPut = []
     outPut.extend([(['Sample details'], 'title'),([ None, 'Initial Type', '[Initial : Final support]', 'Further types', '[Initial:Final support]'], 'notBold'),(None, 'blankLine')])
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
 
         # Produces cladalPropCounter which is a dict of Key = clade, value = proportion of total seqs
         cladalPropCounter = {}
@@ -1478,7 +1702,8 @@ def investigateFinalTypeCorrelations():
     for CLADE in config.args.cladeList:
         cladeSpecificListOfFinalTypes = []
         cladeSpecificListOfSamples = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE:
                     if len(FINALTYPECLADECOLLECTION.listOfFinalTypes) > 0:
@@ -1497,7 +1722,8 @@ def investigateFinalTypeCorrelations():
                                        cladeSpecificListOfFinalTypes]
 
             # Now we revisit each sample and populate the type lists according to the abundance of types found in each sample
-            for SAMPLE in config.abundanceList:
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
                 if SAMPLE.name in cladeSpecificListOfSamples:
                     for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                         if FINALTYPECLADECOLLECTION.clade == CLADE:
@@ -1604,7 +1830,8 @@ def assignCladeCollectionsPermute(cutoff):
     # I will use this information to create an intial type support
     cladeCollectionCountDict = {clade: 0 for clade in config.args.cladeList}
 
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         for CLADE in config.args.cladeList: # Sequences in the different clades are too divergent to be compared so we have to work on a cladlly separated basis, we are only working with the three main clades, A, C and D
             totalSeqs = SAMPLE.totalSeqs
             cladeSpecificSeqs = sum([a.abundance for a in SAMPLE.compComplement.listOfits2SequenceOccurances if a.clade == CLADE]) # Number of sequence the given sample has that are of the given clade
@@ -1634,7 +1861,8 @@ def assignInitialTypesPermute(cladecollectioncountdict):
     # Do this clade by clade
     for CLADE in config.args.cladeList:
         listOfFootprints  = []
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name == 'ADa_011' or SAMPLE.name == 'OMd_028':
                 a = 1
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
@@ -1644,12 +1872,14 @@ def assignInitialTypesPermute(cladecollectioncountdict):
         # STEP TWO
         # For each footprint, work out whether it is a coDom and whether it is a supported type
         # Reassign to the samples' cladeCollections that contain it.
+
         for FOOTPRINT in listOfFootprints:
             coDom = False
             supportedType = False
             listOfSamplesThatContainFootprint = [] # List of the sample names that have a cladeCollection that match the footprint (exactly)
             listOfMajsForSamplesWithFootPrint = [] # List of the sequence names that are found as the predominant seqs in the footprint in question
-            for SAMPLE in config.abundanceList:
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == CLADE and CLADECOLLECTION.footPrint == FOOTPRINT:
                         listOfSamplesThatContainFootprint.append(SAMPLE.name)
@@ -1674,7 +1904,7 @@ def assignInitialTypesPermute(cladecollectioncountdict):
 
                     # This is a supported CoDom now name it:
                     coDom = True
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE, listofcodommajs = list(set(listOfMajsForSamplesWithFootPrint)))
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE, listofcodommajs = list(set(listOfMajsForSamplesWithFootPrint)))
 
                     # Put the new Type into the samples' collectionlits that have it
                     addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
@@ -1692,10 +1922,11 @@ def assignInitialTypesPermute(cladecollectioncountdict):
                     #     newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
                     #     addTypeToSamples(newSymbiodiniumType, listOfSamplesThatContainFootprint)
                 else: # # This is cannot be called a coDom and we can exit out at this point
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
                     addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
             else: # This is an unsupportedType
-                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), supportedType = supportedType, footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL',coDom = coDom, maj = max(set(listOfMajsForSamplesWithFootPrint), key=listOfMajsForSamplesWithFootPrint.count), footPrint = FOOTPRINT, listofSamples=listOfSamplesThatContainFootprint, clade=CLADE)
+
                 # TODO at this point there is no way of knowing whether this type is coDom or not as it is in so few samples. We may have to work this out later on.
                 # Put the new Type into the samples' collectionlits that have it
                 addTypeToSamplesPermute(newSymbiodiniumType, listOfSamplesThatContainFootprint)
@@ -1748,7 +1979,8 @@ def inferFinalSymbiodiniumTypesPermute(cutoff):
         footprintList = []
         typeList = []
         typeCountDict = {}
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                 if CLADECOLLECTION.clade == CLADE:
                     if CLADECOLLECTION.initialType.footPrint not in footprintList and CLADECOLLECTION.initialType.supportedType:
@@ -1759,7 +1991,8 @@ def inferFinalSymbiodiniumTypesPermute(cutoff):
         # Phase 1 - Go through all samples pushing in all supported types.
         # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
         # If there are no further types then we don't have a finaltypecladecollectionlist
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             if SAMPLE.name == 'OMd_028' and CLADE == 'D':
                 a = 5
             finalTypesList = []
@@ -1790,7 +2023,8 @@ def inferFinalSymbiodiniumTypesPermute(cutoff):
         # Phase three:  Then check to see if any of the final type footprints are sub sets of each other. Remove any that are (remove the shorter)
 
         #Go through each sample's finaltypecladecollection for given clade
-        for SAMPLE in config.abundanceList:
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALTYPECLADECOLLECTION.clade == CLADE:
                     # Now iter comparisons and get rid of those types that are subsets of others
@@ -1837,14 +2071,15 @@ def inferFinalSymbiodiniumTypesPermute(cutoff):
     return
 
 def addTypeToSamplesPermute(newSymType, listOfSamplesThatContainFootprint):
-    for SAMPLE in config.abundanceList:
-         if SAMPLE.name in listOfSamplesThatContainFootprint:
-             for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
+        if SAMPLE.name in listOfSamplesThatContainFootprint:
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                  if CLADECOLLECTION.clade == newSymType.clade and CLADECOLLECTION.footPrint == newSymType.footPrint: # Then this is a cladeCollection that we want to add the new Symbiodinium Type to
                     # We are going to add the new type to the sample. However we are going to add it as a new instance of the type so that we can have different sortedDefiningITSwOccurance for each sample
                     # if we add exactly the same occurance of the type to multiple samples then when we change one it will change them all.
                     # E.g. if we change the sortedDefining... for one of the samples it will automatically be changed in all of the samples with that type.
-                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, supportedType=newSymType.supportedType, listofcodommajs=newSymType.listofcodommajs))
+                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, listofcodommajs=newSymType.listofcodommajs))
                     # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
                     CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
@@ -1860,7 +2095,8 @@ def calculatePerformaceParametersPermute():
     # I'm gonna keep this super simple and say if any of the types share defining intras then we have an unresolved
     numberOfFinalTypeCladeCollectionUnsolved = 0
 
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         for CLADECOLLECTION in SAMPLE.cladeCollectionList:
             numberOfCladeCollections += 1
             if CLADECOLLECTION.maj not in collectionOfMajs:
@@ -1882,7 +2118,8 @@ def calculatePerformaceParametersPermute():
     return len(collectionOfInitialTypes), len(collectionOfMajs), numberOfCladeCollectionsWithFinalTypes/numberOfCladeCollections, numberOfFinalTypeCladeCollectionUnsolved/numberOfCladeCollectionsWithFinalTypes
 
 def clearConfigAbundanceList():
-    for SAMPLE in config.abundanceList:
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
         del SAMPLE.cladeCollectionList[:]
         del SAMPLE.finalTypeCladeCollectionList[:]
 
@@ -1925,6 +2162,7 @@ def CreateHumeFstMatrices():
             clearConfigAbundanceList()
         # At this point we have computed all of the parameters we need to write the list out for plotting
         write2DListToDestination(config.args.saveLocation + '/performanceParameters/performanceParameters.txt', performanceParametersList)
+        #TODO also count the number of samples that have supported initial types
         #TODO create a function that chooses the best cut off value from the information gained above
     # Here we put congif.abundanceList back to the empty copy for the last time
 
@@ -1963,18 +2201,27 @@ def CreateHumeFstMatrices():
     # If the type is a coDom we add the coDomSupportedMajDict which is a dictionary containing the name of the ITS2 seqs that are
     # MajITS2 seqs as key and true or false depending on whether they were found in > args.coDomSupport number of
     # samples as True or False to the instance of the Symbiodiniumtype class
+    global typeDB
+    print('Initialising local type database')
+    typeDB = symbiodiniumTypeDB()
+
     print('Assigning initial types')
     if config.args.developingMode:
         try:
             config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned')
+            typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'typeDB')
         except:
             print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
             assignInitialTypes(cladeCollectionCountDict)
             writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned', config.abundanceList)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                              'typeDB', typeDB)
     else:
         assignInitialTypes(cladeCollectionCountDict)  # This now assigns initial types to the samples' cladeCollections
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                           'abundanceListInitialTypesAssigned', config.abundanceList)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'typeDB', typeDB)
     print('Assigned initial types')
 
     ######
@@ -1995,6 +2242,7 @@ def CreateHumeFstMatrices():
     # Once we have knocked out unsupported types or types that are subsets of others we finaltypecladecollection.identified to either True or False
     # depending on whether all of the intras found above the config.args.cutOff have been identified by the types in the finalTypeCladeCollection.listOfFinalTypes
     # and there is no conflict between footprints that share intras but are not subsets.
+
     print('Infering final symbiondinium types')
     if config.args.createMasterSeqDistancesFromScratch == False or config.args.developingMode:
         try:
@@ -2016,8 +2264,10 @@ def CreateHumeFstMatrices():
     # oriented (rather then by sample) info on the projects types identified
     # This info will be critical when working out which type calls to assign to samples
     # It will also make writing out the type-based outputs much simpler
-    global typeDB
-    typeDB = symbiodiniumTypeDB().initialiseFromAbundanceList(config.abundanceList)
+    # global typeDB
+    # print('Initialising local type database')
+    # typeDB = symbiodiniumTypeDB()
+    # typeDB.initialiseFromAbundanceList(config.abundanceList)
 
 
     #Create masterSeqDistancesDict
