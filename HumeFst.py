@@ -1,11 +1,8 @@
 # Imports
 
 import numpy as np
-from tkinter.filedialog import askopenfilename
 from tkinter.filedialog import asksaveasfilename
-from tkinter.filedialog import askdirectory
 import re
-from tkinter import messagebox
 import math
 import itertools
 import os
@@ -18,15 +15,10 @@ from jinja2 import Environment, FileSystemLoader
 from subprocess import call
 import time
 import shutil
-import sys
 import zipfile
 from collections import Counter
 import timeit
 from sklearn import manifold
-import plotly
-from plotly.graph_objs import Scatter, Layout
-from scipy import stats
-from copy import deepcopy
 
 ## THESE ARE ALL THE SUBFUNCTIONS ##
 # read a file line by line with each line containing multiple items separated by a ','
@@ -654,10 +646,9 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
     return changeInFinalSupportOfInitialTypeDict, initialSupportOfInitialTypesDict, htmlString
 
 
-def producePlots(coldists):
+def producePlotsold(coldists):
     # This script makes a plot for each clade level and each subclade or maj level dependent on whether there are enough samples to warrant it
-    # It sends info to writeDataForMakingPlots to produce the actual matrix files ect that R will turn into the plot. This function returns a
-    # csv which is added to the argStringCSVList which will be handed to R to create a load of plots.
+    # It sends info to writeDataForMakingPlots to produce the actual matrix files ect that R will turn into the plot.
     print('Producing Plots')
     argStringCSVList = []
     for CLADE in config.args.cladeList:
@@ -669,8 +660,11 @@ def producePlots(coldists):
             # for CLADECOLLECTION in SAMPLE.cladeCollectionList:
             for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 # if CLADECOLLECTION.clade == CLADE:
-                if FINALTYPECLADECOLLECTION.clade == CLADE and FINALTYPECLADECOLLECTION.identified:
+                if FINALTYPECLADECOLLECTION.clade == CLADE:
                     listOfSamples.append(FINALTYPECLADECOLLECTION.foundWithinSample)
+        # This crazy one liner produces a lists of lists(the interal list) which is then flattened to a single list
+
+
         if len(listOfSamples) >= config.args.cladePlotCutOff: # There will be some clades that don't have any clade collections in them. In this case we can't make a graphic as there are no samples.
             # writeDataForMakingPlots returns a csv string that has the directories where the matrix, listOfSpecies and info files are located
             # R will make plots using these
@@ -726,6 +720,68 @@ def producePlots(coldists):
 
     return
 
+
+def producePlots(coldists):
+    # This script makes a plot for each clade level and each subclade or maj level dependent on whether there are enough samples to warrant it
+    # It sends info to writeDataForMakingPlots to produce the actual matrix files ect that R will turn into the plot.
+    print('Producing Plots')
+    argStringCSVList = []
+    for CLADE in config.args.cladeList:
+        #### STEP ONE
+        # Firstly write out a cladal Matrice before looking to do the Maj-based matrices
+
+        asdf = [a for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
+        tempList = []
+        for a in asdf:
+            tempList.append(config.typeDB[a].samplesFoundInAsFinal)
+        asdfss = [config.typeDB[a].samplesFoundInAsFinal for a in asdf]
+        listofLists = [config.typeDB[a].samplesFoundInAsFinal for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
+
+        listOfSamples = [val for sublist in [config.typeDB[a].samplesFoundInAsFinal for a in config.typeDB.keys() if
+                                             config.typeDB[a].clade == CLADE] for val in sublist]
+        if len(listOfSamples) >= config.args.cladePlotCutOff:  # There will be some clades that don't have any clade collections in them. In this case we can't make a graphic as there are no samples.
+            # writeDataForMakingPlots returns a csv string that has the directories where the matrix, listOfSpecies and info files are located
+            # R will make plots using these
+            argStringCSVList.append(
+                writeDataForMakingPlots(listofsamples=listOfSamples, clade=CLADE, Fstcoldistdict=coldists, ismaj=False))
+
+            #### STEP TWO
+            # Then write out the Maj matrices if appropriate
+            # I am going to collect the Majs for each cladeCollection in each sample irrespective of whether they are a codom or not.
+            # I will do this by creating one dictionary which has the Maj as the key and a list of samples that have that as a Maj as the value
+            majToSamplesDict = {}
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
+                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                    if CLADECOLLECTION.clade == CLADE:
+                                if CLADECOLLECTION.maj in majToSamplesDict.keys():  # if the maj is already in the dict add sample to current list
+                                    majToSamplesDict[CLADECOLLECTION.maj].append(SAMPLE.name)
+                                else:  # If maj not in dict yet then create new entry with the current sample's name
+                                    majToSamplesDict[CLADECOLLECTION.maj] = [SAMPLE.name]
+
+            # For each of the MAJs identified above create a plot if above the plotting threshold
+            for MAJ in majToSamplesDict.keys():  # for each Maj ITS2 that isn't ONLY found in coDoms and has more than the threshold for supported types
+                if len(majToSamplesDict[MAJ]) >= config.args.majPlotCutOff:  # Only make a MajPlot if there are more than or equal to the maj plot threshold cutoff number of sampels worth plotting (coDOm and non-CoDom types)
+
+
+                    if MAJ in config.oursToLaJDict.keys():
+                        convertedMaj = config.oursToLaJDict[MAJ]
+                        isConverted = True
+                    else:
+                        isConverted = False
+                        convertedMaj = MAJ
+
+                    argStringCSVList.append(
+                        writeDataForMakingPlots(Fstcoldistdict=coldists, listofsamples=majToSamplesDict[MAJ],
+                                                clade=CLADE, ismaj=True, maj=convertedMaj, isconverted=isConverted))
+
+    # Here write out the argstringcsvlist to file
+    writeListToDestination(config.args.saveLocation + r'\matrices outputs\RArgList.txt', argStringCSVList)
+
+    producePlotWithR()
+
+    return
+
 def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = None,  isconverted = None):
     # This function will make the matrix, and information file and write them along with the list of samples to file.
     # They will be used by R to create the plots for the html output
@@ -752,8 +808,6 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
         while col < len(FstMatrix[row]): # For each col
             sampleOne = FstMatrix[0][col]
             sampleTwo = FstMatrix[row][0]
-            if {sampleOne, sampleTwo} == {'OMa_030', 'ADa_001'}:
-                a=1
             if sampleOne == sampleTwo:
                 FstMatrix[row][col] = 0.00
             else:
@@ -784,7 +838,6 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
             if SAMPLE.name in listOfSamples:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == clade:
-
                             if CLADECOLLECTION.maj in config.oursToLaJDict:
                                 majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
                             else:
@@ -891,29 +944,25 @@ def createLogTransedFstColDists(masterSeqDistancesDict):
     return FstColDist
 
 def createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict):
-    #TODO this can be made much faster by creating a dict for each of the samples of their
-    # 'allDefiningITS2Occurances' prior to going into the itertools combo part of this method
-    # at the moment we are doing the work many many times over
-    # Go through each of the samples's cladeCollections and look up 'alldefiningits2occurances' and put it into a dict
-    # where the value will be the samplename/clade and the value will be the the list of all its2 occurances that are
-    # definging for that samples cladecollection
+
     allDefiningITS2OccurancesDict = {}
     print('Running createLogTransedFstColDistsFromFinalTypes()')
     FstColDist = []
     for CLADE in config.args.cladeList:  # For each clade
         tempColDist = []
         listOfFinalCladeCollections = []
+
+        # Make list of finalcladecollection within clade
+        # For each sample containing one, add their alldefiningits2occurances to the dict for use in the iter.
         for SAMPLEKEY in config.abundanceList.keys():
             SAMPLE = config.abundanceList[SAMPLEKEY]
-            if (SAMPLE.name == 'ADa_011' or SAMPLE.name == 'OMd_028') and CLADE == 'D':
-                a = 1
             for FINALCLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                 if FINALCLADECOLLECTION.clade == CLADE:
                     allDefiningITS2OccurancesDict['{0}/{1}'.format(SAMPLE.name, CLADE)] = getAllDefiningIts2OccurancesOne(FINALCLADECOLLECTION)
                     listOfFinalCladeCollections.append(FINALCLADECOLLECTION)
+
+
         for a, b in itertools.combinations(listOfFinalCladeCollections, 2):  # For each paired combination of sample
-            if {a.foundWithinSample, b.foundWithinSample} == {'ADa_011', 'OMd_028'}:
-                a = 4
             allDefiningIts2OccurancesA = allDefiningITS2OccurancesDict['{0}/{1}'.format(a.foundWithinSample, a.clade)]
             allDefiningIts2OccurancesB = allDefiningITS2OccurancesDict['{0}/{1}'.format(b.foundWithinSample, b.clade)]
             tempColDist.append([{a.foundWithinSample, b.foundWithinSample}, str(CalculateSinglePairwiseFst(allDefiningIts2OccurancesA, allDefiningIts2OccurancesB, masterSeqDistancesDict))])
@@ -964,29 +1013,27 @@ def getAllDefiningIts2Occurances(finalTypeCladeCollectionA, finalTypeCladeCollec
     return allDefiningIts2OccurancesA, allDefiningIts2OccurancesB
 
 def getAllDefiningIts2OccurancesOne(finalTypeCladeCollectionA):
+    ''' Here we are trying to identify the relative abundances (within the finalTYpeCladeCOllection)
+    of all intras that are found within one of the final types'''
     allDefiningIts2OccurancesA = []
-    checkedOccurancesA = []
+
+    checked = []
+    totalInA = 0
+
+
+    #Calculate the total reads from intras found in the final types collection
+    SAMPLE = config.abundanceList[finalTypeCladeCollectionA.foundWithinSample]
+    for types in finalTypeCladeCollectionA.sortedListOfFinalTypes:
+        for intra in config.typeDB[types].footPrint:
+            if intra not in [a[0] for a in checked]:
+                checked.append((intra, SAMPLE.intraAbundanceDict[intra]))
+                totalInA += SAMPLE.intraAbundanceDict[intra]
 
 
 
-    #First calculate the relative abundances of the defining sequences to each other
-    for types in finalTypeCladeCollectionA.listOfFinalTypes:
-        for sortedOccurance in types.sortedDefiningIts2Occurances:
-            if sortedOccurance not in checkedOccurancesA:
-                checkedOccurancesA.append(sortedOccurance)
-    totalInA = sum(a[1] for a in checkedOccurancesA)
-
-
-
-    checkedOccurancesA.clear()
-
-
-    for types in finalTypeCladeCollectionA.listOfFinalTypes:
-        for sortedOccurance in types.sortedDefiningIts2Occurances:
-            if sortedOccurance not in checkedOccurancesA:
-                checkedOccurancesA.append(sortedOccurance)
-                allDefiningIts2OccurancesA.append(its2SequenceOccurance(abundance = sortedOccurance[1]/(totalInA) * 1000, name = sortedOccurance[0], clade=None, sequence=None))
-
+    # Calculate the relative abundaces of the intras
+    for intra in checked:
+        allDefiningIts2OccurancesA.append(its2SequenceOccurance(abundance=(intra[1]/totalInA)*1000, name=intra[0], clade=None, sequence=None))
 
 
     return allDefiningIts2OccurancesA
@@ -1099,33 +1146,33 @@ def assignInitialTypes(cladecollectioncountdict):
             collapsedFootPrintDict = searchForFurtherInitialsAgain(unsupportedTypeList = footPrintDict, reqsupport=max(4, math.ceil(config.args.typeSupport*cladeCollectionCountDict[CLADE])))
 
 
-        for FOOTPRINT in collapsedFootPrintDict.keys():
-            # Check that the majs have been called correctly: in one case we had a maj that wasn't part of the footprint due to the collapsing
-            if not set(collapsedFootPrintDict[FOOTPRINT][1]).issubset(set(FOOTPRINT)):
-                # Then we have a problem with at least one of the majs that has been called
-                # We need to redo the maj's
-                newMajList = []
-                for SAMPLESIN in collapsedFootPrintDict[FOOTPRINT][0]:
-                    for CLADECOLLECTION in config.abundanceList[SAMPLESIN].cladeCollectionList:
-                        if CLADECOLLECTION.clade == CLADE:
-                            for intraOrdered in CLADECOLLECTION.listOfSeqsAboveCutOff:
-                                if intraOrdered.name in FOOTPRINT:
-                                    newMajList.append(intraOrdered.name)
-                                    break
-                collapsedFootPrintDict[FOOTPRINT][1] = newMajList
-            if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
-                coDom = True
-                # TODO create the type and assign to the sample(s)
-                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1], listofcodommajs=list(set(collapsedFootPrintDict[FOOTPRINT][1])))
-                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
-                typeDB.addType(newSymbiodiniumType)
+            for FOOTPRINT in collapsedFootPrintDict.keys():
+                # Check that the majs have been called correctly: in one case we had a maj that wasn't part of the footprint due to the collapsing
+                if not set(collapsedFootPrintDict[FOOTPRINT][1]).issubset(set(FOOTPRINT)):
+                    # Then we have a problem with at least one of the majs that has been called
+                    # We need to redo the maj's
+                    newMajList = []
+                    for SAMPLESIN in collapsedFootPrintDict[FOOTPRINT][0]:
+                        for CLADECOLLECTION in config.abundanceList[SAMPLESIN].cladeCollectionList:
+                            if CLADECOLLECTION.clade == CLADE:
+                                for intraOrdered in CLADECOLLECTION.listOfSeqsAboveCutOff:
+                                    if intraOrdered.name in FOOTPRINT:
+                                        newMajList.append(intraOrdered.name)
+                                        break
+                    collapsedFootPrintDict[FOOTPRINT][1] = newMajList
+                if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
+                    coDom = True
+                    # TODO create the type and assign to the sample(s)
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1], listofcodommajs=list(set(collapsedFootPrintDict[FOOTPRINT][1])))
+                    addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                    config.typeDB.addType(newSymbiodiniumType)
 
-            else:
-                coDom = False
-                # TODO create the type and assign to the sample(s)
-                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
-                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
-                typeDB.addType(newSymbiodiniumType)
+                else:
+                    coDom = False
+                    # TODO create the type and assign to the sample(s)
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
+                    addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                    config.typeDB.addType(newSymbiodiniumType)
         a = 5
 
 
@@ -1286,15 +1333,9 @@ def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
 
 
 def createMasterSeqDistancesNonMothur():
-    #sequsedinFst was calculated alongside the cladeCollectionList and so only contains sequences appearing at the given cutoff percentage, i.e. those that appear in the cladeCollectionList and so will be used in the creation of matrices and identification of types
-    #Then for each of the lists, create fastas for each clade
-    #Then read each fasta into mothur and output the dist file
-    #Read these files in and concatenate them so that there is a mast dist file
-    #Turn this into a dictionary
-
     print('Running createMasterSeqDistances()')
-    print('Starting time for non-mothur distance')
-    t0 = timeit.default_timer()
+
+
     distList = []
     for CLADE in config.args.cladeList:
         listOfNames = []
@@ -1310,8 +1351,8 @@ def createMasterSeqDistancesNonMothur():
         for seq1, seq2 in itertools.combinations(listOfNames,2):
             distList.append('{0} {1} {2}'.format(seq1, seq2, str(config.JSD(config.seqToFFPProbDistDict[seq1],config.seqToFFPProbDistDict[seq2]))))
     masterSeqDistancesDict = {frozenset(a.split(' ')[:-1]): float(a.split(' ')[2]) for a in distList}
-    t1 = timeit.default_timer()
-    print('Time taken for non-mothur method= {0}'.format(str(t1-t0)))
+
+
     return masterSeqDistancesDict
 
 def assignCladeCollections():
@@ -1347,7 +1388,7 @@ def assignCladeCollections():
     writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict', cladeCollectionCountDict)
     return cladeCollectionCountDict
 
-def inferFinalSymbiodiniumTypes():
+def inferFinalSymbiodiniumTypesOld():
     print('Running inferFinalSymbiodiniumTypes()')
 
 
@@ -1485,6 +1526,38 @@ def inferFinalSymbiodiniumTypes():
                                 i += 1
                             break # Break out of the for that checks to see if finaltypecladecollection is identified
                     break # Break out of the very first if loop that identifies a finaltypecladecollection of the given clade as there is only one per clade
+    print('Completed inferFinalSymbiodiniumTypes()')
+
+def inferFinalSymbiodiniumTypes():
+    print('Running inferFinalSymbiodiniumTypes()')
+    for CLADE in config.args.cladeList:
+
+        # Phase 1 - Go through all samples pushing in all supported types.
+        # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
+
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            finalTypesList = []
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE: # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
+                    listOfIntrasInSample = set([occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if occurance.clade == CLADE])
+                    for TYPE in [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]:
+                        if TYPE.footPrint.issubset(listOfIntrasInSample): #  Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
+                            typeToDel = []
+                            isSubSet = False
+                            for finaltype in finalTypesList:
+                                if set(TYPE.footPrint).issubset(set(finaltype.footPrint)): # Checks to see if new footprint is subset
+                                    isSubSet = True
+                                if set(finaltype.footPrint).issubset(set(TYPE.footPrint)): # If the current final types are subsets of the new type, delete all such types
+                                    typeToDel.append(finaltype)
+                            for toDel in typeToDel:
+                                finalTypesList.remove(toDel)
+                            if isSubSet == False:
+                                finalTypesList.append(TYPE)
+                    for finaltype in finalTypesList:
+                        config.typeDB[finaltype.name].samplesFoundInAsFinal.append(SAMPLE.name)
+                    if len(finalTypesList) > 0:
+                        SAMPLE.finalTypeCladeCollectionList.append(finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE, cutoff=config.args.cutOff, listOfFinalTypes=[finaltype.name for finaltype in finalTypesList]))
     print('Completed inferFinalSymbiodiniumTypes()')
 
 def typeOutputString(name, sorteddefiningits2occurances, initialsupportdict, finalsupportdict):
@@ -2201,27 +2274,26 @@ def CreateHumeFstMatrices():
     # If the type is a coDom we add the coDomSupportedMajDict which is a dictionary containing the name of the ITS2 seqs that are
     # MajITS2 seqs as key and true or false depending on whether they were found in > args.coDomSupport number of
     # samples as True or False to the instance of the Symbiodiniumtype class
-    global typeDB
-    print('Initialising local type database')
-    typeDB = symbiodiniumTypeDB()
+
+    config.typeDB = symbiodiniumTypeDB()
 
     print('Assigning initial types')
     if config.args.developingMode:
         try:
             config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned')
-            typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'typeDB')
+            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'typeDB')
         except:
             print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
             assignInitialTypes(cladeCollectionCountDict)
             writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned', config.abundanceList)
             writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'typeDB', typeDB)
+                                              'typeDB', config.typeDB)
     else:
         assignInitialTypes(cladeCollectionCountDict)  # This now assigns initial types to the samples' cladeCollections
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                           'abundanceListInitialTypesAssigned', config.abundanceList)
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'typeDB', typeDB)
+                                          'typeDB', config.typeDB)
     print('Assigned initial types')
 
     ######
@@ -2244,30 +2316,27 @@ def CreateHumeFstMatrices():
     # and there is no conflict between footprints that share intras but are not subsets.
 
     print('Infering final symbiondinium types')
-    if config.args.createMasterSeqDistancesFromScratch == False or config.args.developingMode:
+    if config.args.developingMode:
         try:
             config.abundanceList = readByteObjectFromDefinedDirectory(
                 config.args.saveLocation + r'\serialized objects', 'abundanceListWithFinalTypes')
+            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                                               'typeDB')
         except:
             print(
                 'Missing Object: abundanceListWithFinalTypes  not found in specified directory\n Creating from scratch...')
             inferFinalSymbiodiniumTypes()
             writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                               'abundanceListWithFinalTypes', config.abundanceList)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                              'typeDB', config.typeDB)
     else:
         inferFinalSymbiodiniumTypes()
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                           'abundanceListWithFinalTypes', config.abundanceList)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+                                          'typeDB', config.typeDB)
     print('Final type inference complete')
-
-    # Initiate the type database wich will hold type
-    # oriented (rather then by sample) info on the projects types identified
-    # This info will be critical when working out which type calls to assign to samples
-    # It will also make writing out the type-based outputs much simpler
-    # global typeDB
-    # print('Initialising local type database')
-    # typeDB = symbiodiniumTypeDB()
-    # typeDB.initialiseFromAbundanceList(config.abundanceList)
 
 
     #Create masterSeqDistancesDict
@@ -2287,26 +2356,6 @@ def CreateHumeFstMatrices():
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict',
                                           masterSeqDistancesDict)
     print('Sequence distance calculation complete')
-
-    # # This logTransedColDists is the Fst values between all combinations of samples that have cladeCollections of the same clade.
-    # # The abundances for the sequences found within each clade collection for each sample are first log transformed so that
-    # # the influence of rarer sequences within the footprint on the final Fst score is increased relative to their abundance.
-    # # This way we get a better resolution between very similar footprints that only differ by rarer sequences
-    # # These Fst distances are calculated only using the sequences that were found above the cutoff, i.e. on initial types not on final types
-    # logTransedColDists = None
-    # if config.args.createFstColDistsFromScratch == False:
-    #     try:
-    #         logTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-    #                                                                 'logTransedColDists')
-    #     except:
-    #         messagebox.showwarning('Missing Object',
-    #                                'logTransedColDists object not found in specified directory\n Creating from scratch...')
-    # if logTransedColDists == None:
-    #     logTransedColDists = createLogTransedFstColDists(masterSeqDistancesDict)
-    #     writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'logTransedColDists', logTransedColDists)
-    # print('Calculated Fsts')
-
-
 
 
     finalLogTransedColDists = None

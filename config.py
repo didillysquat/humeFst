@@ -48,8 +48,8 @@ def __init__():
     parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
     parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
-    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     
@@ -126,6 +126,11 @@ def __init__():
         abundanceList = {SAMPLE.name: SAMPLE for SAMPLE in createAbundnanceListMainMPRaw()}
         # abundanceList = sorted(abundanceList, key=lambda x: x.name)
         writeByteObjectToDefinedDirectory(args.saveLocation + r'\serialized objects','abundanceList', abundanceList)
+
+
+    global typeDB
+    typeDB = None
+
     print('Completed config init')
 
 def createOursToLaJDict():

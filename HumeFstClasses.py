@@ -1,4 +1,4 @@
-import HumeFst
+
 import config
 
 # We should consider re-naming this a sampleBasedSymbiodiniumType or something similar vs a type in the symbiodiniumTypeDB
@@ -43,6 +43,8 @@ class symbiodiniumType:
         if coDom and typeOfType == 'FINAL':
             self.maj = self.sortedDefiningIts2Occurances[0][0]
 
+    def __str__(self):
+        return self.name
 
     def createSortedDefiningIts2Occurances(self, listofoccurences, totalseqs):
         proportionDict = {}
@@ -137,26 +139,17 @@ class finalTypeCladeCollection:
         self.foundWithinSample = foundWithinSample
         self.clade = clade
         self.cutoff = cutoff
-        self.listOfFinalTypes = self.sortedListOfFinalTypes(listOfFinalTypes) # This should be sorted according to the abundance of the Type in the sample
+        self.sortedListOfFinalTypes = self.generateSortedListOfFinalTypes(listOfFinalTypes, foundWithinSample) # This should be sorted according to the abundance of the Type in the sample
 
-        self.identified = False # True if all of the intras of the given clade above the given cutoff are found in the types' defining footprints
-        self.isMixedIdentification = False # If we have two final footprints that share intras but one is not a subset of the other this is TRUE
-        self.maj  = self.listOfFinalTypes[0].maj # The most abundant intra in the most abundant type
-        self.mostAbundantType = self.listOfFinalTypes[0].name
-
-
-
-    def sortedListOfFinalTypes(self, listOfFinalTypes): # I think this might be wrong, we need a list where the most abundant type is first, i.e. addition of all it's
+    def generateSortedListOfFinalTypes(self, listOfFinalTypes, foundWithinSample): # I think this might be wrong, we need a list where the most abundant type is first, i.e. addition of all it's
         compCompDict = {}
-        for SAMPLEKEY in config.abundanceList.keys():
-            SAMPLE = config.abundanceList[SAMPLEKEY]
-            if SAMPLE.name == self.foundWithinSample:
-                for OCCURENCE in SAMPLE.compComplement.listOfits2SequenceOccurances:
-                    compCompDict[OCCURENCE.name] = OCCURENCE.abundance
+        SAMPLE = config.abundanceList[foundWithinSample]
+        for OCCURENCE in SAMPLE.compComplement.listOfits2SequenceOccurances:
+            compCompDict[OCCURENCE.name] = OCCURENCE.abundance
         # Here we have the abundance dict where key = intra in sample and value = abundance
         typeAbundDict = {}
         for TYPE in listOfFinalTypes:
-            for INTRANAME in TYPE.footPrint:
+            for INTRANAME in config.typeDB[TYPE].footPrint:
                 if TYPE in typeAbundDict.keys():
                     typeAbundDict[TYPE] = typeAbundDict[TYPE] + compCompDict[INTRANAME]
                 else:
@@ -191,7 +184,7 @@ class symbiodiniumTypeDB(dict):
                                                               samplename=symbiodiniumType.listOfSamples,
                                                               codom=symbiodiniumType.coDom,
                                                               typeOfType=symbiodiniumType.typeOfType,
-                                                              maj=symbiodiniumType.majList, majList = symbiodiniumType.majList)
+                                                              maj=symbiodiniumType.majList, majList = symbiodiniumType.majList, footprint=symbiodiniumType.footPrint)
 
     def initialiseFromAbundanceList(self, abundanceList):
         for SAMPLE in abundanceList:
@@ -233,13 +226,14 @@ class symboidiniumDBTypeEntry:
 
     '''This creates an instance of the typeEntry probably with only a single instance of the type found in a sample
     We will continue to update the information as we come across instances of the type within the samples'''
-    def __init__(self, name, clade, codom, samplename, typeOfType, maj, majList):
+    def __init__(self, name, clade, codom, samplename, typeOfType, maj, majList, footprint):
         ''' If type is final then we take no listofdefiningintras as we only want this info from intial cases'''
         print('Initialising type: {0}'.format(name))
         self.name = name
         self.coDom = codom
         self.clade = clade
         self.majList = majList
+        self.footPrint = footprint
         # If listofdefiningintras == None then set to empty
         self.definingIntras = self.calculateDefiningIntrasInfo()
         if self.coDom == False:
@@ -260,6 +254,8 @@ class symboidiniumDBTypeEntry:
             else:
                 self.samplesFoundInAsInitial = [samplename]
 
+    def __str__(self):
+        return self.name
 
     def calculateDefiningIntrasInfo(self):
         a=5
