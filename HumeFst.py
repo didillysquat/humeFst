@@ -303,7 +303,7 @@ def createFstColDists(cladeCollectionList, masterSeqDistancesDict):
         i += 1
     return FstColDist
 
-def writeTypeBasedOutput2():
+def writeTypeBasedOutput2Old():
     print('Conducting type-based analysis')
     #23/08/16
     #TODO
@@ -491,6 +491,121 @@ def writeTypeBasedOutput2():
 
     print('Completed writeTypeBasedOutput()')
     return initialSupportDict, finalSupportDict, htmlString
+
+def writeTypeBasedOutput2():
+    print('Conducting type-based analysis')
+
+
+    #Doc for the output
+    outPutDoc = []
+
+    # Go through config.abundance list and populate the dicts and lists
+    for CLADE in config.args.cladeList:
+        listOfTypesInClade = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
+        orderedListOfTypesInClade = sorted(listOfTypesInClade, key=lambda x: len(x.samplesFoundInAsInitial), reverse=True)
+        listOfMajsInClade = list(set([val for sublist in [list(set(config.typeDB[a].majList)) for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE] for val in sublist]))
+        listOfCoDomTypesInClade = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].coDom]
+        #TODO I reckon that this dictOfMajAbundancesInClade is basically what we want to plot
+        dictOfMajAbundancesInClade = {}
+        for TYPE in listOfTypesInClade:
+            for maj in set(TYPE.majList):
+                addItemPairToDict(maj, TYPE.majList.count(maj), dictOfMajAbundancesInClade)
+        orderedListOfMajAbundancesInClade = [a[0] for a in sorted(dictOfMajAbundancesInClade.items(), key=lambda x: x[1], reverse=True)]
+
+
+
+        if len(listOfTypesInClade):
+
+            # ADD CLADE LEVEL INFOMATION
+            outPutDoc.append(('Clade {0}: Types = {1} / Majs = {2} / coDom types = {3}'.format(CLADE, str(len(listOfTypesInClade)), str(len(listOfMajsInClade)), str(len(listOfCoDomTypesInClade))), 'cladeHeader'))
+
+            # INSERT CLADAL TYPE SUMMARY INFORMATION
+            outPutDoc.append(('Type Summary', 'majHeader'))
+            # We currently list the types in order of initial support. However we could
+            # just as easily list them in final support just by using the finalSupportDict instead
+
+            for INITIALTYPE in orderedListOfTypesInClade:
+                outPutDoc.append((['{0}'.format(INITIALTYPE.name), '{0}:{1}'.format(str(len(INITIALTYPE.samplesFoundInAsInitial)),
+                                                                                    str(len(INITIALTYPE.samplesFoundInAsFinal)))],
+                                  'typeInfo'))
+
+            # INSERT FIGURE HERE
+            # If the plots that we want to add exists
+            fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/Clade' + CLADE + '_FstPlot.svg'
+            paretoPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/Clade' + CLADE + '_pareto.svg'
+            if os.path.isfile(fstPlotDir) and os.path.isfile(paretoPlotDir):
+                outPutDoc.append(([fstPlotDir, paretoPlotDir], 'cladalPlot'))
+            else:
+                outPutDoc.append((config.args.saveLocation + '/html templates/image.jpg', 'plotError'))
+
+
+            # NOW GO MAJ BY MAJ WITHIN THE CLADE
+
+            for MAJ in orderedListOfMajAbundancesInClade:
+
+                coDomTypesInMaj = []
+                nonCoDomTypesInMaj = []
+                for typesInClade in listOfTypesInClade:
+                    if MAJ in typesInClade.majList:
+                        if typesInClade.coDom:
+                            coDomTypesInMaj.append(typesInClade)
+                        else:
+                            nonCoDomTypesInMaj.append(typesInClade)
+
+
+                if MAJ in config.oursToLaJDict:
+                    convertedMaj = config.oursToLaJDict[MAJ]
+                else:
+                    convertedMaj = MAJ
+
+                # INSERT MAJ SUMMARY
+                outPutDoc.append(('MajITS2Seq {0}: non-CoDom types = {1} / CoDom types = {2} / Total types = {3}'.format(convertedMaj, str(len(nonCoDomTypesInMaj)), str(len(coDomTypesInMaj)), str(len(coDomTypesInMaj) + len(nonCoDomTypesInMaj))), 'majHeader'))
+
+                # INSERT MAJ PLOT
+                if MAJ in config.oursToLaJDict.keys():
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + config.oursToLaJDict[MAJ] + '/' + config.oursToLaJDict[MAJ] + '_FstPlot.svg'
+                else:
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + MAJ + '/Clade C ' + MAJ + '_FstPlot.svg'
+                if os.path.isfile(fstPlotDir):
+                    outPutDoc.append((fstPlotDir, 'majPlot'))
+                else:
+                    outPutDoc.append(('Insufficient samples to warrant plot', 'plotError'))
+
+                # TABLE HEADERS FOR MAJ SUMMARY NON_CODOM
+                outPutDoc.append((['non-CoDom type', 'Initial:Final Support'], 'subHeader'))
+
+                # Make list of most common types using the Counter class
+                # http://stackoverflow.com/questions/3594514/how-to-find-most-common-elements-of-a-list
+                orderedListOfNonCoDomTypesInMaj = sorted(nonCoDomTypesInMaj, key=lambda x: len(x.samplesFoundInAsInitial), reverse=True)
+                orderedListOfCoDomTypesInMaj = sorted(coDomTypesInMaj, key=lambda x: len(x.samplesFoundInAsInitial), reverse=True)
+                # GO TYPE BY TYPE WITHIN THE MAJ NON-CODOM FIRST THEN CODOM BOTH IN ORDER OF ABUNDACNE
+                for TYPE in orderedListOfNonCoDomTypesInMaj:
+                    outPutDoc.append((['Type: {0}'.format(TYPE.name), '{0}:{1}'.format(str(len(TYPE.samplesFoundInAsInitial)), str(len(TYPE.samplesFoundInAsFinal)))], 'typeInfo'))
+
+                #CHECK TO SEE IF THERE ARE CODOMS TO ADD
+                if orderedListOfCoDomTypesInMaj:
+                    # CODOM HEADER
+                    outPutDoc.append(('Co-Dominant Types = {0}'.format(str(len(orderedListOfCoDomTypesInMaj))), 'majHeader'))
+                    # ADD CODOMS
+                    for TYPE in orderedListOfCoDomTypesInMaj:
+                        outPutDoc.append((['Type: {0}'.format(TYPE.name), '{0}:{1}'.format(str(len(TYPE.samplesFoundInAsInitial)), str(len(TYPE.samplesFoundInAsFinal)))], 'typeInfo'))
+
+    # TRANSLATE OUTPUT DOC INTO HTML
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
+    jinjaTemplate = jinjaEnvironment.get_template('typeCharacterisation__TEMPLATE.html')
+    stringThing = jinjaTemplate.render(outPut=outPutDoc)
+    htmlString = [a for a in stringThing.split('\n')]
+
+    print('Completed writeTypeBasedOutput()')
+    return htmlString
+
+
+def addItemPairToDict(KEY, VALUE, DICT):
+    if KEY in DICT.keys():
+        DICT[KEY] += VALUE
+    else:
+        DICT[KEY] = VALUE
+    return DICT
 
 
 def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2's per clade, number of clades, number of codoms, number of predefined types
@@ -729,14 +844,6 @@ def producePlots(coldists):
     for CLADE in config.args.cladeList:
         #### STEP ONE
         # Firstly write out a cladal Matrice before looking to do the Maj-based matrices
-
-        asdf = [a for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
-        tempList = []
-        for a in asdf:
-            tempList.append(config.typeDB[a].samplesFoundInAsFinal)
-        asdfss = [config.typeDB[a].samplesFoundInAsFinal for a in asdf]
-        listofLists = [config.typeDB[a].samplesFoundInAsFinal for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
-
         listOfSamples = [val for sublist in [config.typeDB[a].samplesFoundInAsFinal for a in config.typeDB.keys() if
                                              config.typeDB[a].clade == CLADE] for val in sublist]
         if len(listOfSamples) >= config.args.cladePlotCutOff:  # There will be some clades that don't have any clade collections in them. In this case we can't make a graphic as there are no samples.
@@ -762,14 +869,7 @@ def producePlots(coldists):
             # For each of the MAJs identified above create a plot if above the plotting threshold
             for MAJ in majToSamplesDict.keys():  # for each Maj ITS2 that isn't ONLY found in coDoms and has more than the threshold for supported types
                 if len(majToSamplesDict[MAJ]) >= config.args.majPlotCutOff:  # Only make a MajPlot if there are more than or equal to the maj plot threshold cutoff number of sampels worth plotting (coDOm and non-CoDom types)
-
-
-                    if MAJ in config.oursToLaJDict.keys():
-                        convertedMaj = config.oursToLaJDict[MAJ]
-                        isConverted = True
-                    else:
-                        isConverted = False
-                        convertedMaj = MAJ
+                    convertedMaj, isConverted = convertToLaJ(MAJ)
 
                     argStringCSVList.append(
                         writeDataForMakingPlots(Fstcoldistdict=coldists, listofsamples=majToSamplesDict[MAJ],
@@ -781,6 +881,12 @@ def producePlots(coldists):
     producePlotWithR()
 
     return
+
+def convertToLaJ(toconvert):
+    if toconvert in config.oursToLaJDict.keys():
+        return config.oursToLaJDict[toconvert], True
+    else:
+        return toconvert, False
 
 def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = None,  isconverted = None):
     # This function will make the matrix, and information file and write them along with the list of samples to file.
@@ -867,17 +973,17 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
 
         # D) Create the info list which will contain data on sample name, host, reef, region etc.
         infoList = []
-        for SAMPLEKEY in config.abundanceList.keys():
-            SAMPLE = config.abundanceList[SAMPLEKEY]
-            if SAMPLE.name in listOfSamples:
+        for SAMPLE in [config.abundanceList[a] for a in listOfSamples]:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == clade:
-                        # Check to see if the Maj name can be LaJconverted
+                        # Check to see if the Maj name can be LaJconverteds
                         # Before adding it to the infolist
                         if CLADECOLLECTION.maj in config.oursToLaJDict:
                             majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
                         else:
                             majITS2 = CLADECOLLECTION.maj
+                        if CLADECOLLECTION.initialType == None:
+                            badger = 'cider'
                         infoList.append(','.join([SAMPLE.name, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.reef), xstr(SAMPLE.region), majITS2, CLADECOLLECTION.initialType.name, str(CLADECOLLECTION.initialType.coDom)]))
 
         # E) Write infolist
@@ -1163,7 +1269,7 @@ def assignInitialTypes(cladecollectioncountdict):
                 if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
                     coDom = True
                     # TODO create the type and assign to the sample(s)
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1], listofcodommajs=list(set(collapsedFootPrintDict[FOOTPRINT][1])))
+                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1])
                     addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
                     config.typeDB.addType(newSymbiodiniumType)
 
@@ -1218,13 +1324,6 @@ def searchForFurtherInitialsAgain(unsupportedTypeList, reqsupport):
                         if topScore != 0:
                             break
             # Here we have finished going through each of the big footprints
-            #TODO maybe don't remove them: if we leave them in then we can add their samples to the maj type when we process the twos below
-            # This can be considered a conservative type assignment to the footprints with many intras that cannot be clustered into any other type.
-            # # Remove anyfootprints from the unsupportedTypeList that have not found a footprint to collapse to
-            # for i in range(len(largestFootprintList)):
-            #     if largestFootprintList[i] not in collapseDict.keys():
-            #         del unsupportedTypeList[largestFootprintList[i]]
-            # Collapse the largest footprints that have associated footprints identified
             for footPrintToCollapse in collapseDict.keys():
                 unsupportedTypeList[collapseDict[footPrintToCollapse]] = [unsupportedTypeList[collapseDict[footPrintToCollapse]][0] + unsupportedTypeList[footPrintToCollapse][0], unsupportedTypeList[collapseDict[footPrintToCollapse]][1] + unsupportedTypeList[footPrintToCollapse][1]]
                 del unsupportedTypeList[footPrintToCollapse]
@@ -1235,20 +1334,9 @@ def searchForFurtherInitialsAgain(unsupportedTypeList, reqsupport):
     that has the most support in the counts dict. I'm honestly not sure how this will effect the typing over all but
     I think it it probably a fair and sensible thing to do.
     '''
-    # Create a count dict of all of the intras in the unsupported types that have foot prints that are len(two)
-    # I am goign to upgrade this so that it works for all footprints that didn't manage to cluster to reach
-    # the required level of support
-    # intraAbundanceDict = {}
-    collectionOfUnsupportedFootprints = [tuples for tuples in unsupportedTypeList.items() if len(tuples[1][0]) < reqsupport]
-    # for unsupportedFootprint in collectionOfUnsupportedFootprints:
-    #     for intra in unsupportedFootprint[0]:
-    #         if intra in intraAbundanceDict.keys():
-    #             intraAbundanceDict[intra] += 1
-    #         else:
-    #             intraAbundanceDict[intra] = 1
 
-    # Use the count dict to assign the samples associated with each of the unsupported two footprints to
-    # a maj type with a footprint len(one)
+    collectionOfUnsupportedFootprints = [tuples for tuples in unsupportedTypeList.items() if len(tuples[1][0]) < reqsupport and len(tuples[0]) > 1]
+
     for i in range(len(collectionOfUnsupportedFootprints)):
         # most common intra is equivalent here to high intra
         highIntra = max(set(collectionOfUnsupportedFootprints[i][1][1]), key=collectionOfUnsupportedFootprints[i][1][1].count)
@@ -1322,11 +1410,11 @@ def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
         SAMPLE = config.abundanceList[SAMPLEKEY]
         if SAMPLE.name in listOfSamplesThatContainFootprint:
              for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-                 if CLADECOLLECTION.clade == newSymType.clade and CLADECOLLECTION.footPrint == newSymType.footPrint: # Then this is a cladeCollection that we want to add the new Symbiodinium Type to
+                 if CLADECOLLECTION.clade == newSymType.clade: # Then this is a cladeCollection that we want to add the new Symbiodinium Type to
                     # We are going to add the new type to the sample. However we are going to add it as a new instance of the type so that we can have different sortedDefiningITSwOccurance for each sample
                     # if we add exactly the same occurance of the type to multiple samples then when we change one it will change them all.
                     # E.g. if we change the sortedDefining... for one of the samples it will automatically be changed in all of the samples with that type.
-                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, majList=newSymType.majList, listofcodommajs=newSymType.listofcodommajs))
+                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, majList=newSymType.majList, name=newSymType.name, sorteddefiningits2occurances=newSymType.sortedDefiningIts2Occurances))
                     # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
                     CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
@@ -1560,12 +1648,79 @@ def inferFinalSymbiodiniumTypes():
                         SAMPLE.finalTypeCladeCollectionList.append(finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE, cutoff=config.args.cutOff, listOfFinalTypes=[finaltype.name for finaltype in finalTypesList]))
     print('Completed inferFinalSymbiodiniumTypes()')
 
-def typeOutputString(name, sorteddefiningits2occurances, initialsupportdict, finalsupportdict):
+def writeSampleCharacterisationOutput():
+    xstr = lambda s: s or ""
+    # This is going to be going sample by sample
+    outPut = []
+    outPut.extend([(['Sample details'], 'title'),([ None, 'Initial Type', '[Initial : Final support]', 'Further types', '[Initial:Final support]'], 'notBold'),(None, 'blankLine')])
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
+
+        # Produces cladalPropCounter which is a dict of Key = clade, value = proportion of total seqs
+        cladalPropCounter = {}
+        for OCCURENCE in SAMPLE.compComplement.listOfits2SequenceOccurances:
+            if OCCURENCE.clade in cladalPropCounter.keys():
+                cladalPropCounter[OCCURENCE.clade] = cladalPropCounter[OCCURENCE.clade] + OCCURENCE.abundance
+            else:
+                cladalPropCounter[OCCURENCE.clade] = OCCURENCE.abundance
+        for keys in cladalPropCounter.keys():
+            cladalPropCounter[keys] = cladalPropCounter[keys]/SAMPLE.totalSeqs
+
+        # Produces a list of tuples in order of most abundant clade
+        sortedCladalAbundanceTuple = [(a[0],a[1]) for a in sorted(cladalPropCounter.items(), key=lambda x:x[1], reverse=True)]
+        cladalProportionString = ':'.join([a[0] + ' ' + str(format(a[1], '.2f')) for a in sortedCladalAbundanceTuple])
+        outPut.append((' / '.join([SAMPLE.name, cladalProportionString, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.region), xstr(SAMPLE.reef)]), 'sample'))
+
+
+        # Here we have written the header line of a sample. Now time to printout the intial and final types, in order of cladal abundance in the sample
+        for CLADE in [a[0] for a in sortedCladalAbundanceTuple]:# Only clades that are represented in the sample in order of abundance
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == CLADE:
+                    if len(SAMPLE.finalTypeCladeCollectionList) > 0:
+                        for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                            if FINALTYPECLADECOLLECTION.clade == CLADE:
+                                typeInfo = typeOutputString(CLADECOLLECTION)
+                                if len(typeInfo) > 1:
+                                    # listOfFinalTypeOutputNames = [typeOutputString(name=finalType.name, sorteddefiningits2occurances=finalType.sortedDefiningIts2Occurances, initialsupportdict=initialSupportDict, finalsupportdict=finalSupportDict) for finalType in orderedListOfFinalTypes]
+                                    outPut.append(([None, typeInfo[0].split('\t')[0], typeInfo[0].split('\t')[1], typeInfo[1].split('\t')[0], typeInfo[1].split('\t')[1]], 'notBold'))
+                                    # further final type
+                                    if len(typeInfo) > 2:
+                                        for FFT in typeInfo[2:]:
+                                            outPut.append(([None, None, None, FFT.split('\t')[0], FFT.split('\t')[1]], 'notBold'))
+                                else:# If there aren't any further types due to all seqs in the finaltypecladecollection being removed
+                                    outPut.append(([None, typeInfo[0].split('\t')[0], typeInfo[0].split('\t')[1], None, None], 'notBold'))
+
+
+        outPut.append((None, 'blankLine'))
+
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
+    jinjaTemplate = jinjaEnvironment.get_template('sampleCharacterisation__TEMPLATE.html')
+    stringThing = jinjaTemplate.render(outPut=outPut)
+    htmlString = [a for a in stringThing.split('\n')]
+
+    return htmlString
+
+def typeOutputString(cladecollection):
+    ''' Return the inital and any final type names and the abundance of their intras'''
+    SAMPLE = config.abundanceList[cladecollection.foundWithinSample]
+    nameInfoToReturn = []
+    intraAbundanceDict = config.abundanceList[cladecollection.foundWithinSample].intraAbundanceDict
+    initialName = cladecollection.initialType.name
+    abundanceInfo = '[{0}]'.format(':'.join(["{0:.2f}".format(((intraAbundanceDict[intraName[0]])/(SAMPLE.totalSeqs*cladecollection.cladalProportion))) for intraName in cladecollection.initialType.sortedDefiningIts2Occurances]))
+    nameInfoToReturn.append('\t'.join([initialName,abundanceInfo]))
+
+    for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+        if FINALTYPECLADECOLLECTION.clade == cladecollection.clade:
+            for FINALTYPE in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes:
+                abundanceInfo = '[{0}]'.format(':'.join(["{0:.2f}".format(((intraAbundanceDict[intraName[0]])/(SAMPLE.totalSeqs*cladecollection.cladalProportion))) for intraName in config.typeDB[FINALTYPE].sortedDefiningIts2Occurances]))
+                nameInfoToReturn.append('\t'.join([FINALTYPE, abundanceInfo]))
+
+    return nameInfoToReturn
+
+def typeOutputStringOld(name, sorteddefiningits2occurances, initialsupportdict, finalsupportdict):
 
     # Convert the sortedDefiningITS2Occurances into a dictionary that we can use to add the proportions with later on.
     # By converting the sequences to laJs where possible we can directly use the name to call up the abundances of the intras from this dict
-    if name == 'C3-Otu23805-Otu12987':
-        print('bar')
     abundanceDict = {}
     for tuple in sorteddefiningits2occurances:
         if tuple[0] in config.oursToLaJDict.keys():
@@ -1615,63 +1770,6 @@ def typeOutputString(name, sorteddefiningits2occurances, initialsupportdict, fin
         newString = newString + '\t' + '[' + str(initialsupportdict[name]) + ':0]'
 
     return newString
-
-
-def writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict):
-    xstr = lambda s: s or ""
-    # This is going to be going sample by sample
-    outPut = []
-    outPut.extend([(['Sample details'], 'title'),([ None, 'Initial Type', '[Initial : Final support]', 'Further types', '[Initial:Final support]'], 'notBold'),(None, 'blankLine')])
-    for SAMPLEKEY in config.abundanceList.keys():
-        SAMPLE = config.abundanceList[SAMPLEKEY]
-
-        # Produces cladalPropCounter which is a dict of Key = clade, value = proportion of total seqs
-        cladalPropCounter = {}
-        for OCCURENCE in SAMPLE.compComplement.listOfits2SequenceOccurances:
-            if OCCURENCE.clade in cladalPropCounter.keys():
-                cladalPropCounter[OCCURENCE.clade] = cladalPropCounter[OCCURENCE.clade] + OCCURENCE.abundance
-            else:
-                cladalPropCounter[OCCURENCE.clade] = OCCURENCE.abundance
-        for keys in cladalPropCounter.keys():
-            cladalPropCounter[keys] = cladalPropCounter[keys]/SAMPLE.totalSeqs
-
-        # Produces a list of tuples in order of most abundant clade
-        sortedCladalAbundanceTuple = [(a[0],a[1]) for a in sorted(cladalPropCounter.items(), key=lambda x:x[1], reverse=True)]
-        cladalProportionString = ':'.join([a[0] + ' ' + str(format(a[1], '.2f')) for a in sortedCladalAbundanceTuple])
-        outPut.append((' / '.join([SAMPLE.name, cladalProportionString, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.region), xstr(SAMPLE.reef)]), 'sample'))
-        # Here we have written the header line of a sample. Now time to printout the intial and final types, in order of cladal abundance in the sample
-        # For the final types we have a choice of two class parameters to sort them by, typesupport or type total proportion
-        # Typesupport is the number of samples that that final type was found in (i.e. a type being a given footprint)
-        # Total proportion being the number of sequences of the sample that make up that type, i.e. sum of abundances of each of the occurances within that type
-        # We will use total proportion
-        for CLADE in [a[0] for a in sortedCladalAbundanceTuple]:# Only clades that are represented in the sample in order of abundance
-            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-                if CLADECOLLECTION.clade == CLADE:
-                    if len(SAMPLE.finalTypeCladeCollectionList) > 0:
-                        for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
-                            if FINALTYPECLADECOLLECTION.clade == CLADE:
-                                orderedListOfFinalTypes = sorted(FINALTYPECLADECOLLECTION.listOfFinalTypes, key=lambda x: x.typeTotalProportion, reverse=True)
-                                initialTypeOutName = typeOutputString(name=CLADECOLLECTION.initialType.name, sorteddefiningits2occurances=CLADECOLLECTION.initialType.sortedDefiningIts2Occurances, initialsupportdict=initialSupportDict, finalsupportdict=finalSupportDict)
-                                if len(orderedListOfFinalTypes) > 0:
-                                    listOfFinalTypeOutputNames = [typeOutputString(name=finalType.name, sorteddefiningits2occurances=finalType.sortedDefiningIts2Occurances, initialsupportdict=initialSupportDict, finalsupportdict=finalSupportDict) for finalType in orderedListOfFinalTypes]
-                                    outPut.append(([None, initialTypeOutName.split('\t')[0], initialTypeOutName.split('\t')[1], listOfFinalTypeOutputNames[0].split('\t')[0],listOfFinalTypeOutputNames[0].split('\t')[1]], 'notBold'))
-                                    for finalTypeOutPutName in listOfFinalTypeOutputNames[1:]:
-                                        outPut.append(([None, None, None, finalTypeOutPutName.split('\t')[0], finalTypeOutPutName.split('\t')[1]], 'notBold'))
-                                else:# If there aren't any further types due to all seqs in the finaltypecladecollection being removed
-                                    outPut.append(([None, initialTypeOutName.split('\t')[0], initialTypeOutName.split('\t')[1], None, None], 'notBold'))
-                    else:# If there aren't any further types due to there being no finaltypecladecollections
-                        initialTypeOutName = typeOutputString(name=CLADECOLLECTION.initialType.name,sorteddefiningits2occurances=CLADECOLLECTION.initialType.sortedDefiningIts2Occurances, initialsupportdict=initialSupportDict, finalsupportdict=finalSupportDict)
-                        outPut.append(([None, initialTypeOutName.split('\t')[0], initialTypeOutName.split('\t')[1], None, None], 'notBold'))
-        outPut.append((None, 'blankLine'))
-                        # For each type in the final type list and for the initial type
-                        # Do the function for the write out
-
-    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
-    jinjaTemplate = jinjaEnvironment.get_template('sampleCharacterisation__TEMPLATE.html')
-    stringThing = jinjaTemplate.render(outPut=outPut)
-    htmlString = [a for a in stringThing.split('\n')]
-
-    return htmlString
 
 def createHtmlHolder():
     tempList = []
@@ -2414,11 +2512,11 @@ def CreateHumeFstMatrices():
     # This function creates a list that contains lines of the html output
     # It is the information relating to the type-based output, i.e. how common each of the types are and which species they are found in etc.
     # It returns this html string as well as two dictionaries which are the number of times given types are found in the inital and final types lists
-    initialSupportDict, finalSupportDict, htmlMainString = writeTypeBasedOutput2()
+    htmlMainString = writeTypeBasedOutput2()
 
     htmlOutput.extend(htmlMainString)
     # Write the sample based output
-    htmlOutput.extend(writeSampleCharacterisationOutput(initialSupportDict, finalSupportDict))
+    htmlOutput.extend(writeSampleCharacterisationOutput())
     # Add the closing tags to the html file
     closeAndWriteHtmlHolder(htmlOutput)
 
