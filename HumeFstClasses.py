@@ -1,6 +1,6 @@
 
 import config
-
+import statistics
 # We should consider re-naming this a sampleBasedSymbiodiniumType or something similar vs a type in the symbiodiniumTypeDB
 class symbiodiniumType:
 # when creating the final types try to pass in the total seqs from sample and the list of occurences from sample.compcomplement.listofits2collection
@@ -188,27 +188,52 @@ class symboidiniumDBTypeEntry:
         self.footPrint = footprint
         self.sortedDefiningIts2Occurances = sorteddefiningits2occurances
         # If listofdefiningintras == None then set to empty
-        self.definingIntras = self.calculateDefiningIntrasInfo()
+        # We still need to work out what we want this to contain
+        # I think a dictionary with the defining intras as keys and the average relative proportion
+        # (relative proportions i.e. summing to 1) and s.ds. of those proportions as the values in a tupe
+        # If we update the footPrint
+        self.definingIntrasInfo = self.calculateDefiningIntrasInfo() # initiate self.definingIntras
         if self.coDom == False:
             self.majDict = {maj[0]: len(maj)}
         else:
-            if typeOfType == 'INITIAL':
-                self.majDict = {samplename[i]: maj[i] for i in range(len(samplename))}
-            # We don't count the majs for final type allocations
-            elif typeOfType == 'FINAL':
-                self.majDict = {}
-        if typeOfType == 'FINAL':
-            self.samplesFoundInAsFinal = [samplename]
-            self.samplesFoundInAsInitial = []
-        elif typeOfType == 'INITIAL':
-            self.samplesFoundInAsFinal = []
-            if len(samplename) > 1:
-                self.samplesFoundInAsInitial = samplename
-            else:
-                self.samplesFoundInAsInitial = [samplename]
+
+            self.majDict = {samplename[i]: maj[i] for i in range(len(samplename))}
+
+
+
+
+        self.samplesFoundInAsFinal = []
+        self.samplesFoundInAsInitial = self.updateSamplesFoundIn(samplename)
 
     def __str__(self):
         return self.name
+
+    def updateSamplesFoundIn(self, additionalSamplesFoundIn):
+        #Here we will update the self.definingIntras parameter so that we
+        # check through the current list of samples and work out the average abundance and s.d. for each
+        # of the intras in the type
+        try:
+            self.samplesFoundInAsInitial = self.samplesFoundInAsInitial + additionalSamplesFoundIn
+        except:
+            self.definingIntrasInfo = {intra: [[], 0, 0] for intra in self.footPrint}  # A list of tuples where each tuple holds the mean and S.d. for the intra (represented by position)
+
+            self.samplesFoundInAsInitial = additionalSamplesFoundIn
+
+        if len(self.footPrint) > 1:
+            for SAMPLEKEY in additionalSamplesFoundIn:
+                SAMPLE = config.abundanceList[SAMPLEKEY]
+                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                    if CLADECOLLECTION.clade == self.clade:
+                        totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in self.footPrint])
+                        for intra in self.footPrint:
+                            self.definingIntrasInfo[intra][0].append(SAMPLE.intraAbundanceDict[intra]/totSeqs)
+
+
+            for intra in self.footPrint:
+                self.definingIntrasInfo[intra][1] = sum(self.definingIntrasInfo[intra][0])/len(self.definingIntrasInfo[intra][0])
+                self.definingIntrasInfo[intra][2] = statistics.stdev(self.definingIntrasInfo[intra][0])
+
+        return
 
     def calculateDefiningIntrasInfo(self):
         a=5

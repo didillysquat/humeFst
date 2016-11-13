@@ -1252,37 +1252,119 @@ def assignInitialTypes(cladecollectioncountdict):
             collapsedFootPrintDict = searchForFurtherInitialsAgain(unsupportedTypeList = footPrintDict, reqsupport=max(4, math.ceil(config.args.typeSupport*cladeCollectionCountDict[CLADE])))
 
 
-            for FOOTPRINT in collapsedFootPrintDict.keys():
-                # Check that the majs have been called correctly: in one case we had a maj that wasn't part of the footprint due to the collapsing
-                if not set(collapsedFootPrintDict[FOOTPRINT][1]).issubset(set(FOOTPRINT)):
-                    # Then we have a problem with at least one of the majs that has been called
-                    # We need to redo the maj's
-                    newMajList = []
-                    for SAMPLESIN in collapsedFootPrintDict[FOOTPRINT][0]:
-                        for CLADECOLLECTION in config.abundanceList[SAMPLESIN].cladeCollectionList:
-                            if CLADECOLLECTION.clade == CLADE:
-                                for intraOrdered in CLADECOLLECTION.listOfSeqsAboveCutOff:
-                                    if intraOrdered.name in FOOTPRINT:
-                                        newMajList.append(intraOrdered.name)
-                                        break
-                    collapsedFootPrintDict[FOOTPRINT][1] = newMajList
-                if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
-                    coDom = True
-                    # TODO create the type and assign to the sample(s)
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1])
-                    addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
-                    config.typeDB.addType(newSymbiodiniumType)
 
-                else:
-                    coDom = False
-                    # TODO create the type and assign to the sample(s)
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
-                    addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
-                    config.typeDB.addType(newSymbiodiniumType)
+
+        for FOOTPRINT in collapsedFootPrintDict.keys():
+            # Check that the majs have been called correctly: in one case we had a maj that wasn't part of the footprint due to the collapsing
+            if not set(collapsedFootPrintDict[FOOTPRINT][1]).issubset(set(FOOTPRINT)):
+                # Then we have a problem with at least one of the majs that has been called
+                # We need to redo the maj's
+                newMajList = []
+                for SAMPLESIN in collapsedFootPrintDict[FOOTPRINT][0]:
+                    for CLADECOLLECTION in config.abundanceList[SAMPLESIN].cladeCollectionList:
+                        if CLADECOLLECTION.clade == CLADE:
+                            for intraOrdered in CLADECOLLECTION.listOfSeqsAboveCutOff:
+                                if intraOrdered.name in FOOTPRINT:
+                                    newMajList.append(intraOrdered.name)
+                                    break
+                collapsedFootPrintDict[FOOTPRINT][1] = newMajList
+            if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
+                coDom = True
+                # TODO create the type and assign to the sample(s)
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1])
+                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                config.typeDB.addType(newSymbiodiniumType)
+
+            else:
+                coDom = False
+                # TODO create the type and assign to the sample(s)
+                newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
+                addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
+                config.typeDB.addType(newSymbiodiniumType)
+
+        ''' get number of its2 reads that are from the defining intras for each of the samples types.
+        average these to get an average number of reads used to define the initial types'''
+
+        checkedList = []
+
+        restart = True
+        while restart:
+            orderedListOfTypesByFootprintLen = [a[0] for a in sorted(config.typeDB.items(), key=lambda x: len(x[1].footPrint), reverse=True)]
+            for i in range(len(orderedListOfTypesByFootprintLen)): # Type by type longest footprints first
+                if len(config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint) > 1 and orderedListOfTypesByFootprintLen[i] not in checkedList:
+                    supported, lastIntra = modelIntraProbDistribution(config.typeDB[orderedListOfTypesByFootprintLen[i]].definingIntraInfo, orderedListOfTypesByFootprintLen[i], CLADE)
+                    if supported:
+                         checkedList.append(orderedListOfTypesByFootprintLen[i])
+                    else:
+                        newFootWtIntraRemoved = config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint.remove(lastIntra)
+                        listOfTypeMatchingNewFoot  = [symtype for symtype in config.typeDB.keys() if config.typeDB[symtype].footPrint == newFootWtIntraRemoved]
+                        if listOfTypeMatchingNewFoot:
+                            # Then there is a type that has this footprint that we can collapse this into
+                            config.typeDB[listOfTypeMatchingNewFoot[0]].updateSamplesFoundIn(config.typeDB[orderedListOfTypesByFootprintLen[i]].samplesFoundInAsInitial)
+                            del config.typeDB[orderedListOfTypesByFootprintLen[i]]
+                        else:
+                            config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint.remove(lastIntra)
+                            # Then we modify this entry in the database and get rid of the last intra
+                        break
+            restart = False
+
+        # Here we should have gone through all of the types and tested all of the lowest level intras to check that they're not found at too low a level
+
+
+
         a = 5
+        ''' At this point we will assess each of the supported types to see if their least abundant intras
+                are found at a suffiecient abundance that means that they are likely to be sampled and are appropriate
+                to be used as defining intras. e.g. if we have a type which is defined by an intra that is found at like 1% on
+                average and it has a fairly large s.d. around that then there is a very high chance possibly that in an
+                average sampling amount this intra will not be found and a misclassification will occur.'''
+                # Perhaps it is easiest to work out of the type dictionary to prevent doubling of work
 
 
     return
+
+def modelIntraProbDistribution(definingintrainfodict, typename, clade):
+    orderedListOfIntrasByAvAbundance = [a[0] for a in sorted(config.typeDB[typename].definingIntrasInfo.items(), key=lambda x: x[1], reverse=True)]
+
+    readsInDefiningType = []
+    for symtype in config.typeDB.keys():
+        if config.typeDB[symtype].clade == clade:
+            for SAMPLE in config.typeDB[symtype].samplesFoundInAsInitial:
+                tempTot = 0
+                for intra in config.typeDB[symtype].footPrint:
+                    tempTot += config.abundanceList[SAMPLE].intraAbundanceDict[intra]
+                readsInDefiningType.append(tempTot)
+    avReadInDefiningType = sum(readsInDefiningType) / len(readsInDefiningType)
+
+
+    # First we try the probability distribution approach
+    probDistModelSupport = False
+    normAbunModelSupport = False
+    listOfIntras = definingintrainfodict.keys()
+    probDist = [definingintrainfodict[intras][1] for intras in listOfIntras]
+    successCounter = 0
+    # permutations
+    perms = 100
+    successRate = 0.05
+    for i in range(perms):
+        arrayOfSampledIntras = np.random.choice(listOfIntras, avReadInDefiningType, p=probDist)
+        if orderedListOfIntrasByAvAbundance[-1] in arrayOfSampledIntras:
+            successCounter += 1
+    if successCounter/perms >= 1 - successRate:
+        probDistModelSupport = True
+
+
+    # Now we try the normal distribution of the one intra approach
+    mu, sigma = definingintrainfodict[orderedListOfIntrasByAvAbundance[-1]][1], definingintrainfodict[orderedListOfIntrasByAvAbundance[-1]][2]
+    modeleledAbundances = np.random.normal(mu, sigma, 1000)
+    if len([x for x in modeleledAbundances if x > 0])/1000 >= 1 - successRate:
+        normAbunModelSupport = True
+    # Currently requring that both of the support methods are True as a sort of conservative check on the intra
+    if probDistModelSupport and normAbunModelSupport:
+        return True, None
+    else:
+        return False, orderedListOfIntrasByAvAbundance[-1]
+
 
 def chDict(value, dict):
     if value in dict.keys():
@@ -1301,6 +1383,7 @@ def searchForFurtherInitialsAgain(unsupportedTypeList, reqsupport):
         # start of analysis they may have had other footprints collapsed into them and as such may
         # now be associated with enough samples to put the footprint above the reqsupport. In this case they will
         # be left out of the largestFootprintList and as such excluded from collapsing
+        # Here we will
         largestFootprintList = [keyName for keyName in unsupportedTypeList.keys() if len(keyName) == n and len(unsupportedTypeList[keyName][0]) < reqsupport]
         if largestFootprintList:
             for bigFootprint in largestFootprintList:
@@ -1358,7 +1441,6 @@ def returnHigherDictValue(setOfThings, dictionary):
         if dictionary[item] == topscore:
             return item
     return 'ERROR'
-
 
 def searchForFurtherInitials(unsupportedTypeList, reqsupport, supportedtypelist):
     # convert the frozenset footprints to plain set footprints to prevent any type confusion
@@ -1418,7 +1500,6 @@ def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
                     # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
                     CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
-
 
 def createMasterSeqDistancesNonMothur():
     print('Running createMasterSeqDistances()')
@@ -1853,7 +1934,6 @@ def createMatrixFromColDistsJSD(listoffinaltypes, JSDcoldistdict):
 
     return Matrix
 
-
 def investigateFinalTypeCorrelations():
     # If we do this all within clade then it will mean that we end up with far fewer pariwise comparisons which will make the
     # computation go a lot faster.
@@ -1979,7 +2059,6 @@ def investigateFinalTypeCorrelations():
             ther
             '''
 
-
 def distBetweenTwoPoints(coord1, coord2):
     return math.hypot(coord2[0]-coord1[0], coord2[1]-coord1[1])
 
@@ -1990,7 +2069,6 @@ def computeCutOffPerformanceParameters(cutoff):
     inferFinalSymbiodiniumTypesPermute(cutoff)
     supportedInitialTypes, numMajs, finalTypesIdentified, unresolvedFinalTypes = calculatePerformaceParametersPermute()
     return supportedInitialTypes, numMajs, finalTypesIdentified, unresolvedFinalTypes
-
 
 def assignCladeCollectionsPermute(cutoff):
     # This function goes through all of the samples in the abundance list. It checks to see if the sample contains a given number of sequences (above 10% of the total sequences; or the config.args.cladeCollectionCutoff value) of each of the clades
