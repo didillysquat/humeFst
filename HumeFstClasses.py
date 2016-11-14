@@ -1,6 +1,7 @@
 
 import config
 import statistics
+import re
 # We should consider re-naming this a sampleBasedSymbiodiniumType or something similar vs a type in the symbiodiniumTypeDB
 class symbiodiniumType:
 # when creating the final types try to pass in the total seqs from sample and the list of occurences from sample.compcomplement.listofits2collection
@@ -171,9 +172,6 @@ class symbiodiniumTypeDB(dict):
         # This method will initialise the database from a given abundanceList
         # Alternatively the addType and __init__ can be used to add types to the DB
 
-
-
-
 class symboidiniumDBTypeEntry:
 
     '''This creates an instance of the typeEntry probably with only a single instance of the type found in a sample
@@ -203,7 +201,7 @@ class symboidiniumDBTypeEntry:
 
 
         self.samplesFoundInAsFinal = []
-        self.samplesFoundInAsInitial = self.updateSamplesFoundIn(samplename)
+        self.updateSamplesFoundIn(samplename) # Initialises self.samplesFoundInAsFinal
 
     def __str__(self):
         return self.name
@@ -212,10 +210,11 @@ class symboidiniumDBTypeEntry:
         #Here we will update the self.definingIntras parameter so that we
         # check through the current list of samples and work out the average abundance and s.d. for each
         # of the intras in the type
+        listOfIntrasInOrderOfAbun = [a[0] for a in self.sortedDefiningIts2Occurances]
         try:
             self.samplesFoundInAsInitial = self.samplesFoundInAsInitial + additionalSamplesFoundIn
         except:
-            self.definingIntrasInfo = {intra: [[], 0, 0] for intra in self.footPrint}  # A list of tuples where each tuple holds the mean and S.d. for the intra (represented by position)
+            self.definingIntrasInfo = [[[], 0, 0 , []] for intra in listOfIntrasInOrderOfAbun]  # A list of tuples where each tuple holds the mean and S.d. for the intra (represented by position)
 
             self.samplesFoundInAsInitial = additionalSamplesFoundIn
 
@@ -224,14 +223,19 @@ class symboidiniumDBTypeEntry:
                 SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == self.clade:
-                        totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in self.footPrint])
-                        for intra in self.footPrint:
-                            self.definingIntrasInfo[intra][0].append(SAMPLE.intraAbundanceDict[intra]/totSeqs)
+                        totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in listOfIntrasInOrderOfAbun])
+                        for i in range(len(self.footPrint)):
+                            self.definingIntrasInfo[i][0].append(SAMPLE.intraAbundanceDict[listOfIntrasInOrderOfAbun[i]]/totSeqs)
+                        # Here we add the ratios info
+                        # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
+                        # by the abundance of the most abundant intra so as to get a ratio
+                        # The ratios of the first intra will always be 1 as we are dividing by itself
+                        for i in range(len(self.footPrint)):
+                            self.definingIntrasInfo[i][3].append(self.definingIntrasInfo[i][0][-1]/self.definingIntrasInfo[0][0][-1])
 
-
-            for intra in self.footPrint:
-                self.definingIntrasInfo[intra][1] = sum(self.definingIntrasInfo[intra][0])/len(self.definingIntrasInfo[intra][0])
-                self.definingIntrasInfo[intra][2] = statistics.stdev(self.definingIntrasInfo[intra][0])
+            for i in range(len(listOfIntrasInOrderOfAbun)):
+                self.definingIntrasInfo[i][1] = sum(self.definingIntrasInfo[i][0])/len(self.definingIntrasInfo[i][0])
+                self.definingIntrasInfo[i][2] = statistics.stdev(self.definingIntrasInfo[i][0])
 
         return
 
@@ -257,9 +261,6 @@ class symboidiniumDBTypeEntry:
     def initialiseSymTypeEntry(self):
         # TODO write this method that will cycle through config.abundance to get the above info
         a = 5
-
-
-
 
 class definingIntraSet:
     '''This will be a set of defiing intras for a given type. We will only consider abundance of
