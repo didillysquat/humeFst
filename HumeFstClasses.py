@@ -132,6 +132,10 @@ class symbiodiniumTypeDB(dict):
     def __init__(self, *arg, **kwargs):
         super(symbiodiniumTypeDB, self).__init__(*arg, **kwargs)
 
+    def generateIntrasInfoFinalForAllTypes(self):
+        for types in self.keys():
+            self[types].generateIntrasInfoFinal()
+
     def addType(self, symbiodiniumType):
         self[symbiodiniumType.name] = symboidiniumDBTypeEntry(name=symbiodiniumType.name, clade=symbiodiniumType.clade,
                                                               samplename=symbiodiniumType.listOfSamples,
@@ -139,38 +143,38 @@ class symbiodiniumTypeDB(dict):
                                                               typeOfType=symbiodiniumType.typeOfType,
                                                               maj=symbiodiniumType.majList, majList = symbiodiniumType.majList, footprint=symbiodiniumType.footPrint, sorteddefiningits2occurances=symbiodiniumType.sortedDefiningIts2Occurances)
 
-    def initialiseFromAbundanceList(self, abundanceList):
-        for SAMPLE in abundanceList:
-            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-                # Type instance
-                TI = CLADECOLLECTION.initialType
-                if TI.name not in self.keys():
-                    # If this is the first time we come across this type we intialise it to the type DB with an inital type instance
-                    self[TI.name] = symboidiniumDBTypeEntry(name=TI.name,
-                                                                    clade=TI.clade,
-                                                                    codom=TI.coDom,
-                                                                    samplename=SAMPLE.name,
-                                                                    typeOfType=TI.typeOfType,
-                                                                    maj=TI.maj, majList=TI.name.majList)
-                elif TI.name in self.keys():
-                    self[TI.name].update(typeoftype=TI.typeOfType, samplename=SAMPLE.name, coDom=TI.coDom,
-                                                  listofdefiningintras=TI.sortedDefiningIts2Occurances, maj=TI.maj)
-                    #Here we need to upgrade the type entry rather than start a new one
-            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
-                for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
-                    if FINALTYPE.name not in self.keys():
-                        self[FINALTYPE.name] = symboidiniumDBTypeEntry(name=FINALTYPE.name,
-                                                                         clade=FINALTYPE.clade,
-                                                                         codom=FINALTYPE.coDom,
-                                                                         samplename=SAMPLE.name, maj=FINALTYPE.maj,
-                                                                         typeOfType=FINALTYPE.typeOfType, majList=FINALTYPE.name.majList)
-                        # Here we need to initialise an entry into the DB using a final type to intialise
-                    else:
-                        # Here we need to upgrade the type with a FINAL type info, i.e. add to which samples
-                        # found in (final) but not add anything to the defining intras
-                        self[FINALTYPE.name].update(typeoftype=FINALTYPE.typeOfType, samplename=SAMPLE.name)
-        # This method will initialise the database from a given abundanceList
-        # Alternatively the addType and __init__ can be used to add types to the DB
+    # def initialiseFromAbundanceList(self, abundanceList):
+    #     for SAMPLE in abundanceList:
+    #         for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+    #             # Type instance
+    #             TI = CLADECOLLECTION.initialType
+    #             if TI.name not in self.keys():
+    #                 # If this is the first time we come across this type we intialise it to the type DB with an inital type instance
+    #                 self[TI.name] = symboidiniumDBTypeEntry(name=TI.name,
+    #                                                                 clade=TI.clade,
+    #                                                                 codom=TI.coDom,
+    #                                                                 samplename=SAMPLE.name,
+    #                                                                 typeOfType=TI.typeOfType,
+    #                                                                 maj=TI.maj, majList=TI.name.majList)
+    #             elif TI.name in self.keys():
+    #                 self[TI.name].update(typeoftype=TI.typeOfType, samplename=SAMPLE.name, coDom=TI.coDom,
+    #                                               listofdefiningintras=TI.sortedDefiningIts2Occurances, maj=TI.maj)
+    #                 #Here we need to upgrade the type entry rather than start a new one
+    #         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+    #             for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
+    #                 if FINALTYPE.name not in self.keys():
+    #                     self[FINALTYPE.name] = symboidiniumDBTypeEntry(name=FINALTYPE.name,
+    #                                                                      clade=FINALTYPE.clade,
+    #                                                                      codom=FINALTYPE.coDom,
+    #                                                                      samplename=SAMPLE.name, maj=FINALTYPE.maj,
+    #                                                                      typeOfType=FINALTYPE.typeOfType, majList=FINALTYPE.name.majList)
+    #                     # Here we need to initialise an entry into the DB using a final type to intialise
+    #                 else:
+    #                     # Here we need to upgrade the type with a FINAL type info, i.e. add to which samples
+    #                     # found in (final) but not add anything to the defining intras
+    #                     self[FINALTYPE.name].update(typeoftype=FINALTYPE.typeOfType, samplename=SAMPLE.name)
+    #     # This method will initialise the database from a given abundanceList
+    #     # Alternatively the addType and __init__ can be used to add types to the DB
 
 class symboidiniumDBTypeEntry:
 
@@ -185,12 +189,8 @@ class symboidiniumDBTypeEntry:
         self.majList = majList
         self.footPrint = footprint
         self.sortedDefiningIts2Occurances = sorteddefiningits2occurances
-        # If listofdefiningintras == None then set to empty
-        # We still need to work out what we want this to contain
-        # I think a dictionary with the defining intras as keys and the average relative proportion
-        # (relative proportions i.e. summing to 1) and s.ds. of those proportions as the values in a tupe
-        # If we update the footPrint
-        self.definingIntrasInfo = self.calculateDefiningIntrasInfo() # initiate self.definingIntras
+
+
         if self.coDom == False:
             self.majDict = {maj[0]: len(maj)}
         else:
@@ -201,10 +201,40 @@ class symboidiniumDBTypeEntry:
 
 
         self.samplesFoundInAsFinal = []
-        self.updateSamplesFoundIn(samplename) # Initialises self.samplesFoundInAsFinal
+        self.updateSamplesFoundIn(samplename) # Initialises self.samplesFoundInAsFinal and self.definingIntras
 
     def __str__(self):
         return self.name
+
+    def generateIntrasInfoFinal(self):
+        '''
+        This will create a self.intrasInfoFinal variable that will be exactly the same as the self.definingIntrasInfo
+        but created form the intra info found in the samples in the self.samplesFoundInAsFinal list
+        :return: This should initiate a self.intrasInfoFinal
+        '''
+        listOfIntrasInOrderOfAbun = [a[0] for a in self.sortedDefiningIts2Occurances]
+        self.intrasInfoFinal = [[[], 0, 0 , []] for intra in listOfIntrasInOrderOfAbun]
+
+
+        if len(self.footPrint) > 1:
+            for SAMPLEKEY in self.samplesFoundInAsFinal:
+                SAMPLE = config.abundanceList[SAMPLEKEY]
+                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                    if CLADECOLLECTION.clade == self.clade:
+                        totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in listOfIntrasInOrderOfAbun])
+                        for i in range(len(self.footPrint)):
+                            self.intrasInfoFinal[i][0].append(SAMPLE.intraAbundanceDict[listOfIntrasInOrderOfAbun[i]]/totSeqs)
+                        # Here we add the ratios info
+                        # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
+                        # by the abundance of the most abundant intra so as to get a ratio
+                        # The ratios of the first intra will always be 1 as we are dividing by itself
+                        for i in range(len(self.footPrint)):
+                            self.intrasInfoFinal[i][3].append(self.intrasInfoFinal[i][0][-1]/self.intrasInfoFinal[0][0][-1])
+
+            for i in range(len(listOfIntrasInOrderOfAbun)):
+                self.intrasInfoFinal[i][1] = sum(self.intrasInfoFinal[i][0])/len(self.intrasInfoFinal[i][0])
+                self.intrasInfoFinal[i][2] = statistics.stdev(self.intrasInfoFinal[i][0])
+
 
     def updateSamplesFoundIn(self, additionalSamplesFoundIn):
         #Here we will update the self.definingIntras parameter so that we
@@ -239,8 +269,7 @@ class symboidiniumDBTypeEntry:
 
         return
 
-    def calculateDefiningIntrasInfo(self):
-        a=5
+
 
     def update(self, typeoftype, samplename, coDom = None, listofdefiningintras = None, maj = None):
         ''' We only take a maj argument if this is coDom and initial
