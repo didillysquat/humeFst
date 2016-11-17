@@ -33,10 +33,14 @@ def __init__():
     
     # Paths
     cwd = os.path.dirname(__file__)
+    edBasePath = r'C:/Users/HUMEBC/Google Drive/EdData/screwaround'
+
     parser.add_argument('--rootLocation', default=cwd, help='Directory where the source code is found', metavar='PATH')
-    parser.add_argument('--inputLocation', default=cwd + '/raw data', help='Directory where the three input files are found', metavar='PATH')
-    parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
-    parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
+    # parser.add_argument('--inputLocation', default=cwd + '/raw data', help='Directory where the three input files are found', metavar='PATH')
+    parser.add_argument('--inputLocation', default=edBasePath + '/raw data',help='Directory where the three input files are found', metavar='PATH')
+    # parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
+    parser.add_argument('--saveLocation', default=edBasePath, help='Output directory for saving matrices and output tables',metavar='PATH')
+    # parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
     parser.add_argument('--rscriptLocation', default=cwd + '/R/R-3.3.0/bin/x64/Rscript.exe', help='Full path including Rscript.exe', metavar='PATH')
     
     # Batch mode
@@ -46,12 +50,12 @@ def __init__():
     
     # Caching
     parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
-    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     
     global args
     args = parser.parse_args()
@@ -59,8 +63,8 @@ def __init__():
     # Before we do anything else, redirect stdout/sterr if requested
     # http://stackoverflow.com/a/4110906/1688738
     if args.logToFile:
-        sys.stdout = open(args.saveLocation + '/stdout.txt', 'w');
-        sys.stderr = open(args.saveLocation + '/stderr.txt', 'w');
+        sys.stdout = open(args.saveLocation + '/stdout.txt', 'w')
+        sys.stderr = open(args.saveLocation + '/stderr.txt', 'w')
 
     # The masterFastaDict is simply a dict of the fasta file that contains all of the seqs that came out
     global masterFastaDict

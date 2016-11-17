@@ -1845,6 +1845,7 @@ def inferFinalSymbiodiniumTypesIterative():
     We should keep track of some metric that will allow us to see when no more iterations are useful.
     Maybe we can track how many types were added to samples on each iteration'''
     print('Running inferFinalSymbiodiniumTypes()')
+    avNumFinTypes = []
     dictOfTypesToCheckInIterations = {}
     for CLADE in config.args.cladeList:
         typeList = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
@@ -1867,7 +1868,7 @@ def inferFinalSymbiodiniumTypesIterative():
                         if TYPE.footPrint.issubset(
                                 listOfIntrasInSample):  # Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
                             addToDictList(keyval = '{0}/{1}'.format(SAMPLE.name, CLADE), value = TYPE.name, dictionary = dictOfTypesToCheckInIterations)
-                            if SAMPLE.name == 'OMc_081' and TYPE.name == 'Otu15163-Otu17432-C1-Otu14865':
+                            if SAMPLE.name == 'YBb_020' :
                                 a = 5
                             if TYPE.name == 'Otu15163/C1':
                                 a = 6
@@ -1876,12 +1877,20 @@ def inferFinalSymbiodiniumTypesIterative():
                                 # This stops us finding types purely diven the presence of the intras but actually checks to the
                                 # way in which the intras appear make sense.
                                 if ratioAcceptable(SAMPLE, TYPE, 'INITIAL'):
-                                    accepted += 1
+                                    a = 1
                                 else:
                                     notAcceptedcount += 1
                                     continue
                                     # Check to see if a the type being considered is a subset of the types already assigned or vice versa
                                     # Only keep the largest
+                            else:
+                                # Check that intra found at over 0.05 of cladalcollection
+                                if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]]/(SAMPLE.totalSeqs*CLADECOLLECTION.cladalProportion) < 0.1:
+                                    notAcceptedcount += 1
+                                    continue
+                            #Here this is an accepted type. I want to see what read numbers the intras were found at
+                            pear = TYPE.name
+                            apple = ' '.join([str(SAMPLE.intraAbundanceDict[intra]) for intra in TYPE.footPrint])
                             typeToDel = []
                             isSubSet = False
                             for finaltype in finalTypesList:
@@ -1898,6 +1907,7 @@ def inferFinalSymbiodiniumTypesIterative():
 
                     for finaltype in finalTypesList:
                         config.typeDB[finaltype.name].samplesFoundInAsFinal.append(SAMPLE.name)
+                        accepted += 1
                     if len(finalTypesList) > 0:
                         SAMPLE.finalTypeCladeCollectionList.append(
                             finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE,
@@ -1905,33 +1915,42 @@ def inferFinalSymbiodiniumTypesIterative():
                                                      listOfFinalTypes=[finaltype.name for finaltype in
                                                                        finalTypesList]))
         print('Clade {0}, accepted = {1}, denied = {2}'.format(CLADE, str(accepted), str(notAcceptedcount)))
-
+    for SAMPLEKEY in config.abundanceList.keys():
+        SAMPLE = config.abundanceList[SAMPLEKEY]
+        for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+            avNumFinTypes.append(len(FINALTYPECLADECOLLECTION.sortedListOfFinalTypes))
+    a = sum(avNumFinTypes)/len(avNumFinTypes)
+    print('Av={0}'.format(str(a)))
     # Here we do the first iteration of trying to get more types in
     typesAdded = 1
+    typesAddedDict = {}
     while typesAdded > 0:
         typesAdded = 0
         config.typeDB.generateIntrasInfoFinalForAllTypes()
         for CLADE in config.args.cladeList:
-            typeList = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
+            # typeList = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
             for SAMPLEKEY in config.abundanceList.keys():
                 SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == CLADE:  # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
                         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                             if FINALTYPECLADECOLLECTION.clade == CLADE:
-                                finalTypesList = [fTCC for fTCC in SAMPLE.finalTypeCladeCollectionList if fTCC.clade == CLADE][0]
-                                listOfIntrasInSample = set(
-                                    [occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if
-                                     occurance.clade == CLADE])
-                                for TYPENAME in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)]:
+                                if SAMPLE.name == 'ADa_003':
+                                    a = 6
+                                for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
                                     TYPE = config.typeDB[TYPENAME]
-                                    if len(TYPE.footPrint) > 1:
+                                    # If type has lost all support then no longer considered
+                                    if len(TYPE.footPrint) > 1 and len(TYPE.samplesFoundInAsFinal) > 0:
                                         if ratioAcceptable(SAMPLE, TYPE, 'FINAL') == False:
+                                            continue
+                                    else:
+                                        # Check that single intra footprint/types found at over 0.05 of cladalcollection
+                                        if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]] / (SAMPLE.totalSeqs * CLADECOLLECTION.cladalProportion) < 0.1:
                                             continue
 
                                     typeToDel = []
                                     isSubSet = False
-                                    for FINALTYPE in [config.typeDB[finaltype] for finaltype in FINALTYPECLADECOLLECTION.listOfFinalTypes]:
+                                    for FINALTYPE in [config.typeDB[finaltype] for finaltype in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
                                         if set(TYPE.footPrint).issubset(
                                                 set(FINALTYPE.footPrint)):  # Checks to see if new footprint is subset
                                             isSubSet = True
@@ -1939,10 +1958,32 @@ def inferFinalSymbiodiniumTypesIterative():
                                                 TYPE.footPrint)):  # If the current final types are subsets of the new type, delete all such types
                                             typeToDel.append(FINALTYPE)
                                     for toDel in typeToDel:
-                                        FINALTYPECLADECOLLECTION.listOfFinalTypes.remove(toDel.name)
+                                        FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.remove(toDel.name)
+                                        try:
+                                            config.typeDB[toDel.name].samplesFoundInAsFinal.remove(SAMPLE.name)
+                                        except:
+                                            a = 6
+                                        # Need to delete this sample from the found in final list for this type entry in the DB
                                     if isSubSet == False:
-                                        FINALTYPECLADECOLLECTION.listOfFinalTypes.append(TYPE.name)
+                                        FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(TYPE.name)
+                                        try:
+                                            config.typeDB[TYPE.name].samplesFoundInAsFinal.append(SAMPLE.name)
+                                        except:
+                                            a = 6
+                                        # Need to add this sample to the found in final list for this type entry in the DB
                                         typesAdded += 1
+                                        if TYPE.name in typesAddedDict.keys():
+                                            typesAddedDict[TYPE.name] += 1
+                                        else:
+                                            typesAddedDict[TYPE.name] = 1
+        avNumFinTypes = []
+        for SAMPLEKEY in config.abundanceList.keys():
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                avNumFinTypes.append(len(FINALTYPECLADECOLLECTION.sortedListOfFinalTypes))
+        a = sum(avNumFinTypes) / len(avNumFinTypes)
+        print('Av={0}'.format(str(a)))
+
 
     print('Completed inferFinalSymbiodiniumTypes()')
 
@@ -1961,24 +2002,50 @@ def ratioAcceptable(sample, symtype, initialorfinal):
     :param symtype: A config.typeDB entry
     :return: Bool representing whether the proposed type should be accepted.
     '''
+    sampleCladalProportion = 0
+    for cladecollection in sample.cladeCollectionList:
+        if cladecollection.clade == symtype.clade:
+            sampleCladalProportion = cladecollection.cladalProportion
     # Get the abundances of the intras for the type in the sample
-    abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra] for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
+    abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra]/(sample.totalSeqs*sampleCladalProportion) for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
+
+    # Make sure that at least one of the Majs is present above 5%
+    # Make sure one of the Majs is the Maj
+    majAbun = False
+    majMax = 0
+    for majs in set(symtype.majList):
+        majsAbundance = sample.intraAbundanceDict[majs]/(sample.totalSeqs*sampleCladalProportion)
+        if majsAbundance > 0.1:
+            majAbun = True
+        if majsAbundance > majMax:
+            majMax = majsAbundance
+    if majAbun == False:
+        return False
+    if max(abundancesOfIntrasInSample) > majMax:
+        return False
+
     ratiosOfIntrasForTypeInSample = []
     for i in range(len(abundancesOfIntrasInSample)):
         ratiosOfIntrasForTypeInSample.append(abundancesOfIntrasInSample[i]/abundancesOfIntrasInSample[0])
     # Now work through each of the ratios, starting with the second and compare to the ratios of the typeDB entry
     for i in range(1, len(abundancesOfIntrasInSample)):
         if ratiosOfIntrasForTypeInSample[i] > 1:
-            ratioToCheck = 1 + (1/ratiosOfIntrasForTypeInSample[i])
+            ratioToCheck = 1/ratiosOfIntrasForTypeInSample[i]
         else:
             ratioToCheck = ratiosOfIntrasForTypeInSample[i]
         if initialorfinal == 'INITIAL':
             listOfRatios = symtype.definingIntrasInfo[i][3]
         elif initialorfinal == 'FINAL':
-            listOfRatios = symtype.definingIntrasInfoFinal[i][3]
+            listOfRatios = symtype.intrasInfoFinal[i][3]
         # For ratios where an intra abun is greater than the maj
-        newList = [x if x < 1 else (1/x) for x in listOfRatios]
-        muOfTypeDBEntry = sum(newList)/len(newList)
+        if symtype.coDom:
+            newList = [x if x < 1 else (1/x) for x in listOfRatios]
+        else:
+            newList = listOfRatios
+        try:
+            muOfTypeDBEntry = sum(newList)/len(newList)
+        except:
+            a = 6
         maxR, minR = max(newList), min(newList)
         if symtype.name == 'Otu15163/C1':
             # newlist = [x if x < 1 else (1 + 1/x) for x in listOfRatios]
@@ -2001,65 +2068,11 @@ def ratioAcceptable(sample, symtype, initialorfinal):
             # plt.hist(newlist,100)
             # plt.show()
             a= 6
-        if ratioToCheck  < minR/2 or ratioToCheck > maxR +((maxR-muOfTypeDBEntry)/2):
+        if ratioToCheck  < minR/1.2 or ratioToCheck > maxR*1.2:
             return  False
     return True
 
-def ratioAcceptableFinal(sample, symtype, initialorfinal):
-    '''
-    This method will assess the type that is currently about to be put into a sample to see if the abundances in which the type's intras are found make sense.
-    For example, if the type is C1/Otu1234 and the average abundances of those two are something like .65 .45 then if we find that the abundances
-    of the intras in this sample are like 0.05 and .45 then these intras are likely not due to this type and they will not be included into this sample.
-    This function will only take symtypes that have a footprint that contains two or more defining intras.
-    I think we will use a set of ratios to define a type. The ratio for each intra will always be the intra in question to the majority intra.
-    I.e. we will not keep track of ratio between intras that are not the most majority intra.
-    For coDom types we will use the intra that is the maj the most often and if this a tie then we will have to just take the first intra in the name I guess.
-    In fact taking the first intra from the name is probably the easiest way of doing it anyway.
-    The ratio information can take the form of a dictionary were
-    :param sample: A config.abundanceList sample
-    :param symtype: A config.typeDB entry
-    :return: Bool representing whether the proposed type should be accepted.
-    '''
-    # Get the abundances of the intras for the type in the sample
-    abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra] for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
-    ratiosOfIntrasForTypeInSample = []
-    for i in range(len(abundancesOfIntrasInSample)):
-        ratiosOfIntrasForTypeInSample.append(abundancesOfIntrasInSample[i]/abundancesOfIntrasInSample[0])
-    # Now work through each of the ratios, starting with the second and compare to the ratios of the typeDB entry
-    for i in range(1, len(abundancesOfIntrasInSample)):
-        if ratiosOfIntrasForTypeInSample[i] > 1:
-            ratioToCheck = 1 + (1/ratiosOfIntrasForTypeInSample[i])
-        else:
-            ratioToCheck = ratiosOfIntrasForTypeInSample[i]
-        listOfRatios = symtype.definingIntrasInfo[i][3]
-        # For ratios where an intra abun is greater than the maj
-        newList = [x if x < 1 else (1/x) for x in listOfRatios]
-        muOfTypeDBEntry = sum(newList)/len(newList)
-        maxR, minR = max(newList), min(newList)
-        if symtype.name == 'Otu15163/C1':
-            # newlist = [x if x < 1 else (1 + 1/x) for x in listOfRatios]
-            # x_grid = np.linspace(0, 2, 1000)
-            # print(str(plt.isinteractive()))
-            # plt.interactive(False)
-            # fig, ax = plt.subplots()
-            # kde = gaussian_kde(newlist)
-            # pdf = kde.evaluate(x_grid)
-            # #TODO
-            # # When considering types for bionomial distributions, i.e. being several types we should maybe have
-            # # a magnitude minimum for defining the types as two
-            # # This could be a proportion of the major peak
-            # c = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1  # local max
-            # modes = len(c)
-            # ax.plot(x_grid, pdf, color='blue', alpha=0.5, lw=3)
-            #
-            # plt.show()
-            # a=6
-            # plt.hist(newlist,100)
-            # plt.show()
-            a= 6
-        if ratioToCheck  < minR/2 or ratioToCheck > maxR +((maxR-muOfTypeDBEntry)/2):
-            return  False
-    return True
+
 
 def addToDictList(keyval, value, dictionary):
     if keyval in dictionary.keys():
@@ -2712,6 +2725,41 @@ def clearConfigAbundanceList():
         del SAMPLE.cladeCollectionList[:]
         del SAMPLE.finalTypeCladeCollectionList[:]
 
+def multiModalDetection():
+    # Here I want to play around with identifying the muti nomial distributions
+    config.typeDB.generateIntrasInfoFinalForAllTypes()
+    for typekey in config.typeDB.keys():
+        TYPE = config.typeDB[typekey]
+        # We'll start with just the configs but evetually maybe we check the rest of them too
+        if not TYPE.coDom:
+            if len(TYPE.samplesFoundInAsFinal) > 9:
+                for i in range(1, len(TYPE.sortedDefiningIts2Occurances)):
+                    listOfRatios = TYPE.intrasInfoFinal[i][3]
+
+                    newlist = [x if x < 1 else (1 + 1 / x) for x in listOfRatios]
+                    # x_grid = np.linspace(-2, 4, 2000)
+                    x_grid = np.linspace(0, 1, 1000)
+                    plt.interactive(False)
+                    fig, ax = plt.subplots(2, sharex=True)
+                    kde = gaussian_kde(newlist)
+                    pdf = kde.evaluate(x_grid)
+                    # TODO
+                    # When considering types for bionomial distributions, i.e. being several types we should maybe have
+                    # a magnitude minimum for defining the types as two
+                    # This could be a proportion of the major peak
+                    c = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1  # local max
+                    modes = len(c)
+                    ax[0].hist(newlist, 100)
+                    ax[0].set_title(TYPE.name)
+                    # ax[0].set_xlim([-2,4])
+                    ax[0].set_xlim([0, 1])
+
+                    ax[1].plot(x_grid, pdf, color='blue', alpha=0.5, lw=3)
+
+                    plt.show()
+                    a = 6
+
+
 ## MAIN FUNCTION ##
 def CreateHumeFstMatrices():
     #For initial use of program
@@ -2920,7 +2968,7 @@ def CreateHumeFstMatrices():
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                           'abundanceListAfterPlotCreation', config.abundanceList)
 
-
+    multiModalDetection()
 
 
     # This simply creates a list that is the start of the html eventual outputfile
@@ -2939,6 +2987,7 @@ def CreateHumeFstMatrices():
     htmlOutput.extend(writeSampleCharacterisationOutput())
     # Add the closing tags to the html file
     closeAndWriteHtmlHolder(htmlOutput)
+
 
 
     
