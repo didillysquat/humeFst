@@ -17,6 +17,12 @@ from scipy.stats import entropy
 from ClassesTwo import *
 
 def __init__():
+    #TODO
+    # Correct direction of sequences
+    # Correct lengths of sequences
+    # When study sequences short deal with returning two LaJ types
+    # Uniqueness of seqs, maybe seq clean up in general
+    # Add furthers to the LaJ dict
     parser = argparse.ArgumentParser()
     
     # Computation parameters
@@ -34,12 +40,12 @@ def __init__():
     # Paths
     cwd = os.path.dirname(__file__)
     edBasePath = r'C:/Users/HUMEBC/Google Drive/EdData/screwaround'
-
+    edBasePathPSBA = r'C:/Users/HUMEBC/Google Drive/EdData/screwaroundpsba'
     parser.add_argument('--rootLocation', default=cwd, help='Directory where the source code is found', metavar='PATH')
     # parser.add_argument('--inputLocation', default=cwd + '/raw data', help='Directory where the three input files are found', metavar='PATH')
-    parser.add_argument('--inputLocation', default=edBasePath + '/raw data',help='Directory where the three input files are found', metavar='PATH')
+    parser.add_argument('--inputLocation', default=edBasePathPSBA + '/raw data',help='Directory where the three input files are found', metavar='PATH')
     # parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
-    parser.add_argument('--saveLocation', default=edBasePath, help='Output directory for saving matrices and output tables',metavar='PATH')
+    parser.add_argument('--saveLocation', default=edBasePathPSBA, help='Output directory for saving matrices and output tables',metavar='PATH')
     # parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
     parser.add_argument('--rscriptLocation', default=cwd + '/R/R-3.3.0/bin/x64/Rscript.exe', help='Full path including Rscript.exe', metavar='PATH')
     
@@ -50,12 +56,12 @@ def __init__():
     
     # Caching
     parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
-    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
-    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
-    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
-    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     
     global args
     args = parser.parse_args()
@@ -98,7 +104,7 @@ def __init__():
 
 
 
-    # Make a dict where key is the ITS2 sequence name and the value is the sequence
+    # Make a dict where key is the ITS2 sequence name and the value is the sequence clade
     global seqNameToCladeDict
     global seqToFFPProbDistDict
     seqNameToCladeDict = None
@@ -139,43 +145,36 @@ def __init__():
 
 def createOursToLaJDict():
     LaJFasta = readDefinedFileToList(args.inputLocation + '/LaJeunesse Types.fas')
-    its2Fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fasta')
-
+    its2Fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fas')
     # Remove all gaps or tail dashes
-    LaJFasta = [a.replace('-','') if a[0] != '>' else a for a in LaJFasta ]
-    its2Fasta = [a.replace('-','') if a[0] != '>' else a for a in its2Fasta]
-    # Now find out which of our its2Fasta seqs relate to LaJ's seqs
-    associatedseqs = []
+    LaJFasta = [a.replace('-', '') if a[0] != '>' else a for a in LaJFasta]
+    its2Fasta = [a.replace('-', '') if a[0] != '>' else a for a in its2Fasta]
+    LaJDict = {}
+
     i = 0
-    while i < len(LaJFasta): # For each of the LaJ seqs
-        print(LaJFasta[i])
-        tempList = []
+    while i < len(its2Fasta): # For each ours
         j = 0
-        while j < len(its2Fasta): # Compare to our seqs
-            if LaJFasta[i+1] in its2Fasta[j+1] or its2Fasta[j+1] in LaJFasta[i+1]: # If either of the sequences can be found in each other or are identical
-                tempList.append(its2Fasta[j][1:])
+        while j < len(LaJFasta): # For each Lajs
+            if LaJFasta[j + 1] in its2Fasta[i + 1] or its2Fasta[i + 1] in LaJFasta[j + 1]:
+                addToDictList(its2Fasta[i][1:], LaJFasta[j].split('_')[0][1:], LaJDict)
             j += 2
-        if len(tempList) > 0: # if there is something in the tempList i.e. if we have found some associates
-            tempList.insert(0, LaJFasta[i].split('_')[0][1:])
-            associatedseqs.append(tempList)
         i += 2
 
-    # Create the dictionary that links our seqs to the LaJ intras
-    ourstolajdict = {}
-    oursToLaJList = associatedseqs
-    j=0
-    while j < len(oursToLaJList): # For each laJ intra cycle through the associated ours intras and put into dictionary
-        k=0
-        for ours in oursToLaJList[j][1:]: # For each of ours
-            ourstolajdict[ours] = oursToLaJList[j][0]
-            k += 1
-        j += 1
+    return LaJDict
 
-    return ourstolajdict
+def addToDictList(keyval, value, dictionary):
+    if keyval in dictionary.keys():
+        dictionary[keyval].append(value)
+    else:
+        dictionary[keyval] = [value]
+    return
+
 
 def createMasterFastaDict():
-    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fasta')
-    return createDictFromFasta(its2fasta)
+    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fas')
+    # Remove all gaps or tail dashes
+    its2Fasta = [a.replace('-', '') if a[0] != '>' else a for a in its2fasta]
+    return createDictFromFasta(its2Fasta)
 
 
 # CLADAL ASSIGNMENT
@@ -388,7 +387,7 @@ def createAbundnanceListMainMPRaw():
     for chunk in createChunkOfAbunanceDataRaw(args.numProcessors): #This produces n[numProcessors] subsets of the abundanceData
         task_queue.put(chunk)
 
-    print('Starting %s subprocesses' % args.numProcessors)
+    print('Starting {0} subprocesses'.format(args.numProcessors))
     all_processes = []
     for n in range(args.numProcessors):
         # all_processes.append(Process(target=workerRaw, args=(task_queue, done_queue, args), daemon=True))
@@ -526,7 +525,9 @@ def worker(input, output, args): # Input = task_queue Output = out_Queue
     print('worker starting with process id: ' + str(os.getpid()))
     sys.stdout.flush()
     sys.stderr.flush()
-    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fasta')
+    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fas')
+    # Remove all gaps or tail dashes
+    its2fasta = [a.replace('-', '') if a[0] != '>' else a for a in its2fasta]
     masterFastaDict = createDictFromFasta(its2fasta)
     for chunk in iter(input.get, 'STOP'): # For each chunk in the input queue
         partialAbundanceList = createAbundanceListMultiProcessClasses(chunk, masterFastaDict) #Pass the chunk into the createAbundanceListMultiProcess function and retrieve output
@@ -542,7 +543,9 @@ def workerRaw(input, output, args, cladedict):  # Input = task_queue Output = ou
     print('worker starting with process id: ' + str(os.getpid()))
     sys.stdout.flush()
     sys.stderr.flush()
-    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fasta')
+    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fas')
+    # Remove all gaps or tail dashes
+    its2fasta = [a.replace('-', '') if a[0] != '>' else a for a in its2fasta]
     masterFastaDict = createDictFromFasta(its2fasta)
     for chunk in iter(input.get, 'STOP'):  # For each chunk in the input queue
         partialAbundanceList = createAbundanceListMultiProcessClassesRaw(chunk, masterFastaDict, cladedict)  # Pass the chunk into the createAbundanceListMultiProcess function and retrieve output
@@ -554,7 +557,9 @@ def workerRaw(input, output, args, cladedict):  # Input = task_queue Output = ou
 
 def createAbundanceListRaw():
     abundanceData = readDefinedFileTo2DList(args.inputLocation + '/ITS2AbundanceRaw.txt')
-    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fasta')
+    its2fasta = readDefinedFileToList(args.inputLocation + '/ITS2Fasta.fas')
+    # Remove all gaps or tail dashes
+    its2fasta = [a.replace('-', '') if a[0] != '>' else a for a in its2fasta]
     masterFastaDict = createDictFromFasta(its2fasta)
     SeqNameToCladeDict = createSeqNameToCladeDict(masterFastaDict, 3)
     # This esentially gives us the abundanceData

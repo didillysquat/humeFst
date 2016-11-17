@@ -437,10 +437,11 @@ def writeTypeBasedOutput2Old():
             # NOW GO MAJ BY MAJ WITHIN THE CLADE
             orderedListOfMajs = [a[0] for a in sorted(collectionOfMajs.items(), key=lambda x: len(x[1]), reverse=True)]
             for MAJ in orderedListOfMajs:
-                if MAJ in config.oursToLaJDict:
-                    convertedMaj = config.oursToLaJDict[MAJ]
-                else:
-                    convertedMaj = MAJ
+                # if MAJ in config.oursToLaJDict:
+                #     convertedMaj = config.oursToLaJDict[MAJ]
+                # else:
+                #     convertedMaj = MAJ
+                convertedMaj = CLJ(MAJ)
 
                 # CALCULATE NUMBER OF CODOM TYPES IN MAJ this therefore allows us to calculate non-codoms too as we know the total numbe of types.
                 numberOfCoDomTypesInMaj = 0
@@ -453,9 +454,9 @@ def writeTypeBasedOutput2Old():
 
                 # INSERT MAJ PLOT
                 if MAJ in config.oursToLaJDict.keys():
-                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + config.oursToLaJDict[MAJ] + '/' + config.oursToLaJDict[MAJ] + '_FstPlot.svg'
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + CLJ(MAJ) + '/' + CLJ(MAJ) + '_FstPlot.svg'
                 else:
-                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + MAJ + '/Clade C ' + MAJ + '_FstPlot.svg'
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + CLJ(MAJ) + '/Clade C ' + CLJ(MAJ) + '_FstPlot.svg'
                 if os.path.isfile(fstPlotDir):
                     outPutDoc.append((fstPlotDir, 'majPlot'))
                 else:
@@ -555,17 +556,17 @@ def writeTypeBasedOutput2():
                             nonCoDomTypesInMaj.append(typesInClade)
 
 
-                if MAJ in config.oursToLaJDict:
-                    convertedMaj = config.oursToLaJDict[MAJ]
-                else:
-                    convertedMaj = MAJ
-
+                # if MAJ in config.oursToLaJDict:
+                #     convertedMaj = config.oursToLaJDict[MAJ]
+                # else:
+                #     convertedMaj = MAJ
+                convertedMaj = CLJ(MAJ)
                 # INSERT MAJ SUMMARY
                 outPutDoc.append(('MajITS2Seq {0}: non-CoDom types = {1} / CoDom types = {2} / Total types = {3}'.format(convertedMaj, str(len(nonCoDomTypesInMaj)), str(len(coDomTypesInMaj)), str(len(coDomTypesInMaj) + len(nonCoDomTypesInMaj))), 'majHeader'))
 
                 # INSERT MAJ PLOT
                 if MAJ in config.oursToLaJDict.keys():
-                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + config.oursToLaJDict[MAJ] + '/' + config.oursToLaJDict[MAJ] + '_FstPlot.svg'
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + CLJ(MAJ) + '/' + CLJ(MAJ) + '_FstPlot.svg'
                 else:
                     fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + MAJ + '/Clade C ' + MAJ + '_FstPlot.svg'
                 if os.path.isfile(fstPlotDir):
@@ -709,12 +710,12 @@ def writeTypeBasedOutput(): # Produce all of the info such as number of Maj ITS2
                 orderedlistOfNonCoDomTypesWithinMaj = [a[0] for a in sorted({unique: listOfNonCoDomTypesWithinMaj.count(unique) for unique in set(listOfNonCoDomTypesWithinMaj)}.items(), key=lambda x: x[1], reverse=True)]
 
                 if MAJ in config.oursToLaJDict.keys():
-                    outPutDoc.append(('MajITS2Seq ' + config.oursToLaJDict[MAJ] + ': Number of Types = ' + str(len(orderedlistOfNonCoDomTypesWithinMaj)) + ' / Number of Samples = ' + str(len(listOfNonCoDomTypesWithinMaj)), 'majHeader'))
+                    outPutDoc.append(('MajITS2Seq ' + CLJ(MAJ) + ': Number of Types = ' + str(len(orderedlistOfNonCoDomTypesWithinMaj)) + ' / Number of Samples = ' + str(len(listOfNonCoDomTypesWithinMaj)), 'majHeader'))
                 else:
                     outPutDoc.append(('MajITS2Seq ' + MAJ[3:] + ': Number of Types = ' + str(len(orderedlistOfNonCoDomTypesWithinMaj)) + ' / Number of Samples = ' + str(len(listOfNonCoDomTypesWithinMaj)), 'majHeader'))
                 #INSERT PLOT HERE
                 if MAJ in config.oursToLaJDict.keys():
-                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + config.oursToLaJDict[MAJ] + '/' + config.oursToLaJDict[MAJ] + '_FstPlot.svg'
+                    fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + CLJ(MAJ) + '/' + CLJ(MAJ) + '_FstPlot.svg'
                 else:
                     fstPlotDir = config.args.saveLocation + '/matrices outputs/Clade' + CLADE + '/IncludingMaj/' + MAJ + '/Clade C ' + MAJ + '_FstPlot.svg'
                 if os.path.isfile(fstPlotDir):
@@ -819,7 +820,7 @@ def producePlotsold(coldists):
 
                 # If possible convert to the LaJ name
                 if MAJ in config.oursToLaJDict.keys():
-                    convertedMaj = config.oursToLaJDict[MAJ]
+                    convertedMaj = CLJ(MAJ)
                     isConverted = True
                 else:
                     isConverted = False
@@ -884,11 +885,15 @@ def producePlots(coldists):
 
     return
 
-def convertToLaJ(toconvert):
-    if toconvert in config.oursToLaJDict.keys():
-        return config.oursToLaJDict[toconvert], True
-    else:
-        return toconvert, False
+def convertToLaJ(VAR):
+    try:
+        if len(config.oursToLaJDict[VAR]) > 1:
+            return '#'.join(config.oursToLaJDict[VAR]), True
+        else:
+            return config.oursToLaJDict[VAR][0], True
+    except:
+        return VAR, False
+
 
 def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = None,  isconverted = None):
     # This function will make the matrix, and information file and write them along with the list of samples to file.
@@ -946,11 +951,11 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
             if SAMPLE.name in listOfSamples:
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == clade:
-                            if CLADECOLLECTION.maj in config.oursToLaJDict:
-                                majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
-                            else:
-                                majITS2 = CLADECOLLECTION.maj
-
+                            # if CLADECOLLECTION.maj in config.oursToLaJDict:
+                            #     majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
+                            # else:
+                            #     majITS2 = CLADECOLLECTION.maj
+                            majITS2 = CLJ(CLADECOLLECTION.maj)
                             infoList.append(','.join([SAMPLE.name, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.reef), xstr(SAMPLE.region), majITS2, CLADECOLLECTION.initialType.name, str(CLADECOLLECTION.initialType.coDom)]))
         # E) Write info list
         writeListToDestination(config.args.saveLocation + '\\matrices outputs\\Clade' + clade + '\\' + 'IncludingMaj' + '\\' + maj + '\\SampleInfo.info', infoList)
@@ -980,10 +985,11 @@ def writeDataForMakingPlots(Fstcoldistdict, listofsamples, clade, ismaj,  maj = 
                     if CLADECOLLECTION.clade == clade:
                         # Check to see if the Maj name can be LaJconverteds
                         # Before adding it to the infolist
-                        if CLADECOLLECTION.maj in config.oursToLaJDict:
-                            majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
-                        else:
-                            majITS2 = CLADECOLLECTION.maj
+                        # if CLADECOLLECTION.maj in config.oursToLaJDict:
+                        #     majITS2 = config.oursToLaJDict[CLADECOLLECTION.maj]
+                        # else:
+                        #     majITS2 = CLADECOLLECTION.maj
+                        majITS2 = CLJ(CLADECOLLECTION.maj)
                         if CLADECOLLECTION.initialType == None:
                             badger = 'cider'
                         infoList.append(','.join([SAMPLE.name, xstr(SAMPLE.hostTaxon), xstr(SAMPLE.reef), xstr(SAMPLE.region), majITS2, CLADECOLLECTION.initialType.name, str(CLADECOLLECTION.initialType.coDom)]))
@@ -1276,90 +1282,16 @@ def assignInitialTypes(cladecollectioncountdict):
                 if len(set(collapsedFootPrintDict[FOOTPRINT][1])) > 1:
                     coDom = True
                     # TODO create the type and assign to the sample(s)
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1])
+                    newSymbiodiniumType = symbiodiniumType( coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], clade=CLADE, majList = collapsedFootPrintDict[FOOTPRINT][1])
                     addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
                     config.typeDB.addType(newSymbiodiniumType)
 
                 else:
                     coDom = False
                     # TODO create the type and assign to the sample(s)
-                    newSymbiodiniumType = symbiodiniumType(typeOfType='INITIAL', coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
+                    newSymbiodiniumType = symbiodiniumType( coDom=coDom, maj=max(set(collapsedFootPrintDict[FOOTPRINT][1]), key=collapsedFootPrintDict[FOOTPRINT][1].count), footPrint=FOOTPRINT, listofSamples=collapsedFootPrintDict[FOOTPRINT][0], majList = collapsedFootPrintDict[FOOTPRINT][1], clade=CLADE)
                     addTypeToSamples(newSymbiodiniumType, collapsedFootPrintDict[FOOTPRINT][0])
                     config.typeDB.addType(newSymbiodiniumType)
-
-            ''' get number of its2 reads that are from the defining intras for each of the samples types.
-            average these to get an average number of reads used to define the initial types'''
-
-
-            # # This works out how many reads on average were sequenced per sample's initial type
-            # # We use this number when modelling whether an intra is likely to be sequenced
-            # # Obviously the higher the number of reads the high the likelihood of sequencing a given intra is
-            #
-            # readsInDefiningType = []
-            # for symtype in config.typeDB.keys():
-            #     if config.typeDB[symtype].clade == CLADE:
-            #         for SAMPLE in config.typeDB[symtype].samplesFoundInAsInitial:
-            #             tempTot = 0
-            #             for intra in config.typeDB[symtype].footPrint:
-            #                 try:
-            #                     tempTot += config.abundanceList[SAMPLE].intraAbundanceDict[intra]
-            #                 except:
-            #                     a = 5
-            #             readsInDefiningType.append(tempTot)
-            # fithPercentile = np.percentile(readsInDefiningType, 5)
-            #
-            #
-            # ''' At this point we will assess each of the supported types to see if their least abundant intras
-            #                 are found at a suffiecient abundance that means that they are likely to be sampled and are appropriate
-            #                 to be used as defining intras. e.g. if we have a type which is defined by an intra that is found at like 1% on
-            #                 average and it has a fairly large s.d. around that then there is a very high chance possibly that in an
-            #                 average sampling amount this intra will not be found and a misclassification will occur.'''
-            # # Perhaps it is easiest to work out of the type dictionary to prevent doubling of work
-            # # So it turns out that due to the 0.04 or whatever it is cutoff, we will never have abundances below this cutoff
-            # # And given that our average type is defined by more than 300 reads (being conservative) it is very unlikely
-            # # that we will not find a given intra
-            # # I am thinking that we should go through the final types first to push in final types but also do the control on them
-            # # where we check that the ratios between intras is correct.
-            # # Once we have the final types pushed in then this will give us the full abundance spectrum of the types
-            # # Then we will be able to see if an intra is likely to be a good definer.
-            # # This ability will obviously depend on how abundnat the whole type is
-            # # so maybe will only consider situations in which the type is abundant at 50% or above
-            # # Also to work out whether an intra will be found we should possibly only loook at the smallest abundances
-            # # Perhaps we could look at the lowest 10% of abundances or lowest 4 if there aren't many
-            #
-            #
-            # # To see which types have already been tested and who's intras are found in a high enough abundance
-            # # These will be skipped over so that we don't retest intras that have already been tested
-            # checkedList = []
-            # restart = True
-            # while restart:
-            #     orderedListOfTypesByFootprintLen = [a[0] for a in sorted(config.typeDB.items(), key=lambda x: len(x[1].footPrint), reverse=True) if config.typeDB[a[0]].clade == CLADE]
-            #     for i in range(len(orderedListOfTypesByFootprintLen)): # Type by type longest footprints first
-            #         if len(config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint) > 1 and orderedListOfTypesByFootprintLen[i] not in checkedList:
-            #             if orderedListOfTypesByFootprintLen[i] == 'Otu15163-Otu17432-C1-Otu14865':
-            #                 a = 6
-            #             supported, lastIntra = modelIntraProbDistribution(config.typeDB[orderedListOfTypesByFootprintLen[i]].definingIntrasInfo, orderedListOfTypesByFootprintLen[i], fithPercentile)
-            #             if supported:
-            #                  checkedList.append(orderedListOfTypesByFootprintLen[i])
-            #             else:
-            #                 newFootWtIntraRemoved = config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint.remove(lastIntra)
-            #                 listOfTypeMatchingNewFoot  = [symtype for symtype in config.typeDB.keys() if config.typeDB[symtype].footPrint == newFootWtIntraRemoved]
-            #                 if listOfTypeMatchingNewFoot:
-            #                     # Then there is a type that has this footprint that we can collapse this into
-            #                     config.typeDB[listOfTypeMatchingNewFoot[0]].updateSamplesFoundIn(config.typeDB[orderedListOfTypesByFootprintLen[i]].samplesFoundInAsInitial)
-            #                     del config.typeDB[orderedListOfTypesByFootprintLen[i]]
-            #                 else:
-            #                     config.typeDB[orderedListOfTypesByFootprintLen[i]].footPrint.remove(lastIntra)
-            #                     # Then we modify this entry in the database and get rid of the last intra
-            #                 break
-            #         else:
-            #             if orderedListOfTypesByFootprintLen[i] not in checkedList:
-            #                 checkedList.append(orderedListOfTypesByFootprintLen[i])
-            #     restart = False
-            #
-            # # Here we should have gone through all of the types and tested all of the lowest level intras to check that they're not found at too low a level
-
-
 
         a = 5
 
@@ -1586,9 +1518,9 @@ def addTypeToSamples(newSymType, listOfSamplesThatContainFootprint):
                     # We are going to add the new type to the sample. However we are going to add it as a new instance of the type so that we can have different sortedDefiningITSwOccurance for each sample
                     # if we add exactly the same occurance of the type to multiple samples then when we change one it will change them all.
                     # E.g. if we change the sortedDefining... for one of the samples it will automatically be changed in all of the samples with that type.
-                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, typeOfType=newSymType.typeOfType, listofSamples=newSymType.listOfSamples, majList=newSymType.majList, name=newSymType.name, sorteddefiningits2occurances=newSymType.sortedDefiningIts2Occurances))
+                    CLADECOLLECTION.addInitialType(symbiodiniumType(clade=newSymType.clade, coDom=newSymType.coDom, maj=newSymType.maj, footPrint=newSymType.footPrint, listofSamples=newSymType.listOfSamples, majList=newSymType.majList, name=newSymType.name, sorteddefiningits2occurances=newSymType.sortedDefiningIts2Occurances))
                     # Here we add the CLADECOLLECTION.initialType.sortedDefiningIts2Occurances
-                    CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
+                    # CLADECOLLECTION.initialType.sortedDefiningIts2Occurances = CLADECOLLECTION.initialType.createSortedDefiningIts2Occurances(SAMPLE.compComplement.listOfits2SequenceOccurances, SAMPLE.totalSeqs)[0]
     return
 
 def createMasterSeqDistancesNonMothur():
@@ -1608,7 +1540,7 @@ def createMasterSeqDistancesNonMothur():
         # We only need to know the distances of every seq within the clades rather than all seqs total
         # so we will work out the dists clade by clade
         for seq1, seq2 in itertools.combinations(listOfNames,2):
-            distList.append('{0} {1} {2}'.format(seq1, seq2, str(config.JSD(config.seqToFFPProbDistDict[seq1],config.seqToFFPProbDistDict[seq2]))))
+            distList.append('{0} {1} {2}'.format(seq1, seq2, str(config.JSD(config.seqToFFPProbDistDict[seq1], config.seqToFFPProbDistDict[seq2]))))
     masterSeqDistancesDict = {frozenset(a.split(' ')[:-1]): float(a.split(' ')[2]) for a in distList}
 
 
@@ -1849,78 +1781,83 @@ def inferFinalSymbiodiniumTypesIterative():
     dictOfTypesToCheckInIterations = {}
     for CLADE in config.args.cladeList:
         typeList = [config.typeDB[a] for a in config.typeDB.keys() if config.typeDB[a].clade == CLADE]
+        if typeList:
         # Phase 1 - Go through all samples pushing in all supported types.
         # Phase 2 - Go through all samples doing a count of types (make list) and identify supported and unsupported: This will tell us which of the previously unsupported initial types are now supported. It will not tell us which of the initial types that may now not be supported but these will be dropped out in phase 3
 
-        notAcceptedcount = 0
-        accepted = 0
+            notAcceptedcount = 0
+            accepted = 0
 
 
-        for SAMPLEKEY in config.abundanceList.keys():
-            SAMPLE = config.abundanceList[SAMPLEKEY]
-            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-                if CLADECOLLECTION.clade == CLADE:  # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
-                    finalTypesList = []
-                    listOfIntrasInSample = set(
-                        [occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if
-                         occurance.clade == CLADE])
-                    for TYPE in typeList:
-                        if TYPE.footPrint.issubset(
-                                listOfIntrasInSample):  # Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
-                            addToDictList(keyval = '{0}/{1}'.format(SAMPLE.name, CLADE), value = TYPE.name, dictionary = dictOfTypesToCheckInIterations)
-                            if SAMPLE.name == 'YBb_020' :
-                                a = 5
-                            if TYPE.name == 'Otu15163/C1':
-                                a = 6
-                            if len(TYPE.footPrint) > 1:
-                                # This is the second/first level of control which makes sure that the ratios of the intras are sensible
-                                # This stops us finding types purely diven the presence of the intras but actually checks to the
-                                # way in which the intras appear make sense.
-                                if ratioAcceptable(SAMPLE, TYPE, 'INITIAL'):
-                                    a = 1
+            for SAMPLEKEY in config.abundanceList.keys():
+                SAMPLE = config.abundanceList[SAMPLEKEY]
+                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                    if CLADECOLLECTION.clade == CLADE:  # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
+                        finalTypesList = []
+                        listOfIntrasInSample = set(
+                            [occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if
+                             occurance.clade == CLADE])
+                        for TYPE in typeList:
+                            if TYPE.footPrint.issubset(
+                                    listOfIntrasInSample):  # Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
+                                addToDictList(keyval = '{0}/{1}'.format(SAMPLE.name, CLADE), value = TYPE.name, dictionary = dictOfTypesToCheckInIterations)
+                                if SAMPLE.name == 'YBb_020' :
+                                    a = 5
+                                if TYPE.name == 'Otu15163/C1':
+                                    a = 6
+                                if len(TYPE.footPrint) > 1:
+                                    # This is the second/first level of control which makes sure that the ratios of the intras are sensible
+                                    # This stops us finding types purely diven the presence of the intras but actually checks to the
+                                    # way in which the intras appear make sense.
+                                    if ratioAcceptable(SAMPLE, TYPE, 'INITIAL'):
+                                        a = 1
+                                    else:
+                                        notAcceptedcount += 1
+                                        continue
+                                        # Check to see if a the type being considered is a subset of the types already assigned or vice versa
+                                        # Only keep the largest
                                 else:
-                                    notAcceptedcount += 1
-                                    continue
-                                    # Check to see if a the type being considered is a subset of the types already assigned or vice versa
-                                    # Only keep the largest
-                            else:
-                                # Check that intra found at over 0.05 of cladalcollection
-                                if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]]/(SAMPLE.totalSeqs*CLADECOLLECTION.cladalProportion) < 0.1:
-                                    notAcceptedcount += 1
-                                    continue
-                            #Here this is an accepted type. I want to see what read numbers the intras were found at
-                            pear = TYPE.name
-                            apple = ' '.join([str(SAMPLE.intraAbundanceDict[intra]) for intra in TYPE.footPrint])
-                            typeToDel = []
-                            isSubSet = False
-                            for finaltype in finalTypesList:
-                                if set(TYPE.footPrint).issubset(
-                                        set(finaltype.footPrint)):  # Checks to see if new footprint is subset
-                                    isSubSet = True
-                                if set(finaltype.footPrint).issubset(set(
-                                        TYPE.footPrint)):  # If the current final types are subsets of the new type, delete all such types
-                                    typeToDel.append(finaltype)
-                            for toDel in typeToDel:
-                                finalTypesList.remove(toDel)
-                            if isSubSet == False:
-                                finalTypesList.append(TYPE)
+                                    # Check that intra found at over 0.05 of cladalcollection
+                                    if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]]/(SAMPLE.totalSeqs*CLADECOLLECTION.cladalProportion) < 0.1:
+                                        notAcceptedcount += 1
+                                        continue
+                                #Here this is an accepted type. I want to see what read numbers the intras were found at
+                                pear = TYPE.name
+                                apple = ' '.join([str(SAMPLE.intraAbundanceDict[intra]) for intra in TYPE.footPrint])
+                                typeToDel = []
+                                isSubSet = False
+                                for finaltype in finalTypesList:
+                                    if set(TYPE.footPrint).issubset(
+                                            set(finaltype.footPrint)):  # Checks to see if new footprint is subset
+                                        isSubSet = True
+                                    if set(finaltype.footPrint).issubset(set(
+                                            TYPE.footPrint)):  # If the current final types are subsets of the new type, delete all such types
+                                        typeToDel.append(finaltype)
+                                for toDel in typeToDel:
+                                    finalTypesList.remove(toDel)
+                                if isSubSet == False:
+                                    finalTypesList.append(TYPE)
 
-                    for finaltype in finalTypesList:
-                        config.typeDB[finaltype.name].samplesFoundInAsFinal.append(SAMPLE.name)
-                        accepted += 1
-                    if len(finalTypesList) > 0:
-                        SAMPLE.finalTypeCladeCollectionList.append(
-                            finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE,
-                                                     cutoff=config.args.cutOff,
-                                                     listOfFinalTypes=[finaltype.name for finaltype in
-                                                                       finalTypesList]))
-        print('Clade {0}, accepted = {1}, denied = {2}'.format(CLADE, str(accepted), str(notAcceptedcount)))
+                        for finaltype in finalTypesList:
+                            config.typeDB[finaltype.name].samplesFoundInAsFinal.append(SAMPLE.name)
+                            accepted += 1
+                        if len(finalTypesList) > 0:
+                            SAMPLE.finalTypeCladeCollectionList.append(
+                                finalTypeCladeCollection(foundWithinSample=SAMPLE.name, clade=CLADE,
+                                                         cutoff=config.args.cutOff,
+                                                         listOfFinalTypes=[finaltype.name for finaltype in
+                                                                           finalTypesList]))
+            print('Clade {0}, accepted = {1}, denied = {2}'.format(CLADE, str(accepted), str(notAcceptedcount)))
+
+    # Get the average number of final types associated to each finaltypecladecollection
+    # Use this as a metric for the degree of additional type assignment
     for SAMPLEKEY in config.abundanceList.keys():
         SAMPLE = config.abundanceList[SAMPLEKEY]
         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
             avNumFinTypes.append(len(FINALTYPECLADECOLLECTION.sortedListOfFinalTypes))
     a = sum(avNumFinTypes)/len(avNumFinTypes)
     print('Av={0}'.format(str(a)))
+
     # Here we do the first iteration of trying to get more types in
     typesAdded = 1
     typesAddedDict = {}
@@ -1984,6 +1921,9 @@ def inferFinalSymbiodiniumTypesIterative():
         a = sum(avNumFinTypes) / len(avNumFinTypes)
         print('Av={0}'.format(str(a)))
 
+    multiModalDetection()
+
+    # TODO Once we have completed the multiModal Detection it may be worth re iterating the type assignments?
 
     print('Completed inferFinalSymbiodiniumTypes()')
 
@@ -2068,11 +2008,105 @@ def ratioAcceptable(sample, symtype, initialorfinal):
             # plt.hist(newlist,100)
             # plt.show()
             a= 6
-        if ratioToCheck  < minR/1.2 or ratioToCheck > maxR*1.2:
+        if ratioToCheck  < minR/2or ratioToCheck > maxR*2:
             return  False
     return True
 
 
+def multiModalDetection():
+    # Here we identify if there is a bionomial distribution in coDom types between the two most abundant intras
+    # If we find a binomial distribution which meets our parameters for a clearly being two separate distributions
+    # then we separate the type into two new types
+    config.typeDB.generateIntrasInfoFinalForAllTypes()
+    typesToCreate = []
+    typesToDelete = []
+    for typekey in config.typeDB.keys():
+        TYPE = config.typeDB[typekey]
+        # We'll start with just the configs but evetually maybe we check the rest of them too
+        if TYPE.coDom:
+            if len(TYPE.samplesFoundInAsFinal) > 9:
+                #Check only the first two most abundant intras of the coDom
+                # for i in range(1, len(TYPE.sortedDefiningIts2Occurances)):
+                listOfRatios = TYPE.intrasInfoFinal[1][3]
+                newlist = [x if x < 1 else (1 + 1 / x) for x in listOfRatios]
+                x_grid = np.linspace(-2, 4, 2000)
+                kde = gaussian_kde(newlist)
+                pdf = kde.evaluate(x_grid)
+                # TODO
+                # When considering types for bionomial distributions, i.e. being several types we should maybe have
+                # a magnitude minimum for defining the types as two
+                # This could be a proportion of the major peak
+                a = np.diff(pdf)
+                b = np.sign(np.diff(pdf))
+                d = np.diff(np.sign(np.diff(pdf)))
+                e = (np.diff(np.sign(np.diff(pdf))) < 0)
+                f = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()
+                g = (np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1
+                # returns index of the local max's in pdf
+                # Using these index on x_grid will give you x of maxs, use on pdf will give you y
+                c = list((np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1)
+                modes = len(c)
+
+                plotHists(pdf, x_grid, newlist, TYPE.name)
+
+                # If this appears to be a bimodal distribution
+
+                if modes == 2:
+                    # Identify which peak is biggest
+                    # Peak hieght must be at least half the size of each other
+                    yDiffValid = False
+                    if pdf[c[0]] > pdf[c[1]]:
+                        if pdf[c[1]] / pdf[c[0]] > 0.5:
+                            yDiffValid = True
+                    else:
+                        if abs(pdf[c[0]] / pdf[c[1]]) > 0.5:
+                            vDiffValid = True
+
+                    xDiffValid = False
+                    if x_grid[c[1]] - x_grid[c[0]] > 0.5:
+                        xDiffValid = True
+
+                    # Then here we have a candidate for separating into two types
+                    # Seperate the samples either side of the minima x axis
+                    # Find the minimum x value and then use this ratio as the separator for the two modes
+                    # Because the ratio information was put in the same order as the samplesFoundInAsFinal
+                    # we can work out which samples are which side of the ratio
+                    if yDiffValid and xDiffValid:
+                        orderedListOfSamplesInType = TYPE.samplesFoundInAsFinal
+                        samplesForTypeA = []
+                        samplesForTypeB = []
+                        minX = x_grid[list(((np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1))[1]]
+                        for i in range(len(newlist)):
+                            if newlist[i] < minX:
+                                samplesForTypeA.append(orderedListOfSamplesInType[i])
+                            else:
+                                samplesForTypeB.append(orderedListOfSamplesInType[i])
+                        newTypeA = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeA, footprint=TYPE.footPrint)
+                        newTypeB = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeB, footprint=TYPE.footPrint)
+                        typesToCreate.extend([newTypeA, newTypeB])
+                        typesToDelete.append(TYPE.name)
+                a = 6
+    for types in typesToCreate:
+        # Check to make sure we haven't ended up with two types with the same name
+        if types.name not in config.typeDB.keys():
+            config.typeDB[types.name] = types
+        else:
+            for i in range(1,999):
+                types.name = types.name + '({0})'.format(str(i))
+                if types.name not in config.typesDB.keys():
+                    config.typeDB[types.name] = types
+                    break
+    for types in typesToDelete:
+        del config.typeDB[types]
+
+def plotHists(pdf, x_grid, newlist, typename):
+    plt.interactive(False)
+    fig, ax = plt.subplots(2, sharex=True)
+    ax[0].hist(newlist, 100)
+    ax[0].set_title(typename)
+    ax[0].set_xlim([-2, 4])
+    ax[1].plot(x_grid, pdf, color='blue', alpha=0.5, lw=3)
+    plt.show()
 
 def addToDictList(keyval, value, dictionary):
     if keyval in dictionary.keys():
@@ -2157,11 +2191,11 @@ def typeOutputStringOld(name, sorteddefiningits2occurances, initialsupportdict, 
     # By converting the sequences to laJs where possible we can directly use the name to call up the abundances of the intras from this dict
     abundanceDict = {}
     for tuple in sorteddefiningits2occurances:
-        if tuple[0] in config.oursToLaJDict.keys():
-            abundanceDict[config.oursToLaJDict[tuple[0]]] = tuple[1]
-        else:
-            abundanceDict[tuple[0]] = tuple[1]
-
+        # if tuple[0] in config.oursToLaJDict.keys():
+        #     abundanceDict[CLJ(tuple[0])] = tuple[1]
+        # else:
+        #     abundanceDict[tuple[0]] = tuple[1]
+        abundanceDict[CLJ(tuple[0])] = tuple[1]
     # Deconstruct the name and get a list of dashes and slashes
     dashAndSlashList = []
     for character in name:
@@ -2725,40 +2759,6 @@ def clearConfigAbundanceList():
         del SAMPLE.cladeCollectionList[:]
         del SAMPLE.finalTypeCladeCollectionList[:]
 
-def multiModalDetection():
-    # Here I want to play around with identifying the muti nomial distributions
-    config.typeDB.generateIntrasInfoFinalForAllTypes()
-    for typekey in config.typeDB.keys():
-        TYPE = config.typeDB[typekey]
-        # We'll start with just the configs but evetually maybe we check the rest of them too
-        if not TYPE.coDom:
-            if len(TYPE.samplesFoundInAsFinal) > 9:
-                for i in range(1, len(TYPE.sortedDefiningIts2Occurances)):
-                    listOfRatios = TYPE.intrasInfoFinal[i][3]
-
-                    newlist = [x if x < 1 else (1 + 1 / x) for x in listOfRatios]
-                    # x_grid = np.linspace(-2, 4, 2000)
-                    x_grid = np.linspace(0, 1, 1000)
-                    plt.interactive(False)
-                    fig, ax = plt.subplots(2, sharex=True)
-                    kde = gaussian_kde(newlist)
-                    pdf = kde.evaluate(x_grid)
-                    # TODO
-                    # When considering types for bionomial distributions, i.e. being several types we should maybe have
-                    # a magnitude minimum for defining the types as two
-                    # This could be a proportion of the major peak
-                    c = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1  # local max
-                    modes = len(c)
-                    ax[0].hist(newlist, 100)
-                    ax[0].set_title(TYPE.name)
-                    # ax[0].set_xlim([-2,4])
-                    ax[0].set_xlim([0, 1])
-
-                    ax[1].plot(x_grid, pdf, color='blue', alpha=0.5, lw=3)
-
-                    plt.show()
-                    a = 6
-
 
 ## MAIN FUNCTION ##
 def CreateHumeFstMatrices():
@@ -2968,7 +2968,8 @@ def CreateHumeFstMatrices():
         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
                                           'abundanceListAfterPlotCreation', config.abundanceList)
 
-    multiModalDetection()
+    #TODO incorporate at somepoint
+    # multiModalDetection()
 
 
     # This simply creates a list that is the start of the html eventual outputfile

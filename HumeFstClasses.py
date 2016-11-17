@@ -5,7 +5,7 @@ import re
 # We should consider re-naming this a sampleBasedSymbiodiniumType or something similar vs a type in the symbiodiniumTypeDB
 class symbiodiniumType:
 # when creating the final types try to pass in the total seqs from sample and the list of occurences from sample.compcomplement.listofits2collection
-    def __init__(self, footPrint, clade, maj, typeOfType, coDom, listofoccurences = None, name =None, sorteddefiningits2occurances=None, listofSamples=None, majList = None,  totalseqs=None,  typeSupport=None, totalSeqs=None, permute=None, abundancelist = None):
+    def __init__(self, footPrint, clade, maj, coDom,  name =None, sorteddefiningits2occurances=None, listofSamples=None, majList = None):
         self.coDom = coDom
         if coDom :
             self.maj = {listofSamples[i]: majList[i] for i in range(len(listofSamples))}
@@ -15,25 +15,19 @@ class symbiodiniumType:
         self.listOfSamples = listofSamples
         self.footPrint = footPrint # This should be a frozenset
         self.clade = clade
-        self.typeOfType = typeOfType
+
         if name == None and sorteddefiningits2occurances == None:
             self.name, self.sortedDefiningIts2Occurances = self.createSymbiodiniumTypeName()
         else:
             self.name = name
             self.sortedDefiningIts2Occurances = sorteddefiningits2occurances
+
     def __str__(self):
         return self.name
 
-    def createSortedDefiningIts2Occurances(self, listofoccurences, totalseqs):
-        proportionDict = {}
-        cladalProportion = sum([occurence.abundance for occurence in listofoccurences if occurence.clade == self.clade]) / totalseqs  # This is the decimal percentage of the proportion of that clades sequences in that sample
-        for OCCURENCE in listofoccurences:
-            if OCCURENCE.clade == self.clade:
-                proportionDict[OCCURENCE.name] = OCCURENCE.abundance / (cladalProportion * totalseqs)  # This is the decimal percentage of this sequence as a proportion of it's clades sequences within the sample
-        sortedList = [(a[0], a[1]) for a in sorted(proportionDict.items(), key=lambda x: x[1], reverse=True) if a[0] in self.footPrint]
-        return sortedList, proportionDict
 
-    def createSymbiodiniumTypeName(self,  listOfOccurences = None, totalSeqs = None): # Outputname
+
+    def createSymbiodiniumTypeName(self, ): # Outputname
         # Create an abundance dictionary for the sequences in the footprint across all samples that contain that type
         proportionDict = {seq: 0 for seq in self.footPrint}
         for SAMPLEKEY in self.listOfSamples:
@@ -82,7 +76,10 @@ class symbiodiniumType:
 #Check LaJ Covnertion
 def CLJ(VAR):
     try:
-        return config.oursToLaJDict[VAR]
+        if len(config.oursToLaJDict[VAR]) > 1:
+            return '#'.join(config.oursToLaJDict[VAR])
+        else:
+            return config.oursToLaJDict[VAR][0]
     except:
         return VAR
 
@@ -140,71 +137,94 @@ class symbiodiniumTypeDB(dict):
         self[symbiodiniumType.name] = symboidiniumDBTypeEntry(name=symbiodiniumType.name, clade=symbiodiniumType.clade,
                                                               samplename=symbiodiniumType.listOfSamples,
                                                               codom=symbiodiniumType.coDom,
-                                                              typeOfType=symbiodiniumType.typeOfType,
-                                                              maj=symbiodiniumType.majList, majList = symbiodiniumType.majList, footprint=symbiodiniumType.footPrint, sorteddefiningits2occurances=symbiodiniumType.sortedDefiningIts2Occurances)
+                                                              majList = symbiodiniumType.majList, footprint=symbiodiniumType.footPrint, sorteddefiningits2occurances=symbiodiniumType.sortedDefiningIts2Occurances)
 
-    # def initialiseFromAbundanceList(self, abundanceList):
-    #     for SAMPLE in abundanceList:
-    #         for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-    #             # Type instance
-    #             TI = CLADECOLLECTION.initialType
-    #             if TI.name not in self.keys():
-    #                 # If this is the first time we come across this type we intialise it to the type DB with an inital type instance
-    #                 self[TI.name] = symboidiniumDBTypeEntry(name=TI.name,
-    #                                                                 clade=TI.clade,
-    #                                                                 codom=TI.coDom,
-    #                                                                 samplename=SAMPLE.name,
-    #                                                                 typeOfType=TI.typeOfType,
-    #                                                                 maj=TI.maj, majList=TI.name.majList)
-    #             elif TI.name in self.keys():
-    #                 self[TI.name].update(typeoftype=TI.typeOfType, samplename=SAMPLE.name, coDom=TI.coDom,
-    #                                               listofdefiningintras=TI.sortedDefiningIts2Occurances, maj=TI.maj)
-    #                 #Here we need to upgrade the type entry rather than start a new one
-    #         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
-    #             for FINALTYPE in FINALTYPECLADECOLLECTION.listOfFinalTypes:
-    #                 if FINALTYPE.name not in self.keys():
-    #                     self[FINALTYPE.name] = symboidiniumDBTypeEntry(name=FINALTYPE.name,
-    #                                                                      clade=FINALTYPE.clade,
-    #                                                                      codom=FINALTYPE.coDom,
-    #                                                                      samplename=SAMPLE.name, maj=FINALTYPE.maj,
-    #                                                                      typeOfType=FINALTYPE.typeOfType, majList=FINALTYPE.name.majList)
-    #                     # Here we need to initialise an entry into the DB using a final type to intialise
-    #                 else:
-    #                     # Here we need to upgrade the type with a FINAL type info, i.e. add to which samples
-    #                     # found in (final) but not add anything to the defining intras
-    #                     self[FINALTYPE.name].update(typeoftype=FINALTYPE.typeOfType, samplename=SAMPLE.name)
-    #     # This method will initialise the database from a given abundanceList
-    #     # Alternatively the addType and __init__ can be used to add types to the DB
+
 
 class symboidiniumDBTypeEntry:
 
     '''This creates an instance of the typeEntry probably with only a single instance of the type found in a sample
     We will continue to update the information as we come across instances of the type within the samples'''
-    def __init__(self, name, clade, codom, samplename, typeOfType, maj, majList, footprint, sorteddefiningits2occurances):
+    def __init__(self,  clade,  samplename,  footprint, majList = None, codom = None, sorteddefiningits2occurances=None, name=None,):
         ''' If type is final then we take no listofdefiningintras as we only want this info from intial cases'''
-        print('Initialising type: {0}'.format(name))
-        self.name = name
-        self.coDom = codom
-        self.clade = clade
-        self.majList = majList
-        self.footPrint = footprint
-        self.sortedDefiningIts2Occurances = sorteddefiningits2occurances
-
-
-        if self.coDom == False:
-            self.majDict = {maj[0]: len(maj)}
+        if name == None:
+            print('Splitting binomial distribution')
         else:
+            print('Initialising type: {0}'.format(name))
+        self.clade = clade
+        self.footPrint = footprint
+        # self.samplesFoundInAsFinal = []
+        #If this is the first creation of the DBtype
+        if name:
+            self.name = name
+            self.sortedDefiningIts2Occurances = sorteddefiningits2occurances
+            self.majList = majList
+            self.coDom = codom
+            self.samplesFoundInAsFinal = []
+            self.updateSamplesFoundIn(samplename)  # Initialises self.samplesFoundInAsInitial and self.definingIntras
+        # If this is the creation of a new type due to a binomial split
+        else:
+            self.samplesFoundInAsFinal = samplename
+            self.createSymDBEntryName() # initializes self.name, self.sortedDefiningITS2Occurances, self.majList and self.coDom
+            self.generateIntrasInfoFinal()
+        if self.coDom == False:
+            self.majDict = {self.majList[0]: len(self.majList)}
+        else:
+            self.majDict = {samplename[i]: self.majList[i] for i in range(len(samplename))}
 
-            self.majDict = {samplename[i]: maj[i] for i in range(len(samplename))}
-
-
-
-
-        self.samplesFoundInAsFinal = []
-        self.updateSamplesFoundIn(samplename) # Initialises self.samplesFoundInAsFinal and self.definingIntras
 
     def __str__(self):
         return self.name
+
+    def createSymDBEntryName(self, ): # Outputname
+        ''' This needs to return a name, sortedDefiningIts2Occurances, majList and coDom'''
+        # Keep track of which intra is the maj in each sample (must be one of the intras in the footprint)
+        # This may we can reassess to see if this new type is still a
+        majList = []
+        # Create an abundance dictionary for the sequences in the footprint across all samples that contain that type
+        proportionDict = {seq: 0 for seq in self.footPrint}
+        for SAMPLEKEY in self.samplesFoundInAsFinal:
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == self.clade:
+                    for intra in self.footPrint:
+                        proportionDict[intra] = proportionDict[intra] + (SAMPLE.intraAbundanceDict[intra]/(SAMPLE.totalSeqs*CLADECOLLECTION.cladalProportion))
+            # Also deduce the maj for this sample for this type
+            listOfIntraTuplesInFootPrintForSample = [a for a in SAMPLE.intraAbundanceDict.items() if a[0] in self.footPrint]
+            orderedListOfIntrasNamesInFootPrintForSample = [a[0] for a in sorted(listOfIntraTuplesInFootPrintForSample, key=lambda x:x[1], reverse=True)]
+            majList.append(orderedListOfIntrasNamesInFootPrintForSample[0])
+        self.majList = majList
+        if len(set(self.majList)) > 1:
+            self.coDom = True
+        else:
+            self.coDom = False
+
+        # A sorted list of the intra abundances as calculated across all samples containing the type
+        sortedList = [(a[0], a[1]) for a in sorted(proportionDict.items(), key=lambda x: x[1], reverse=True)]
+        copyOfSortedList = list(sortedList)
+        self.sortedDefiningIts2Occurances = copyOfSortedList
+        # A sorted list of the names of the seqs by highest abundance
+        sortedList = [a[0] for a in sortedList]
+
+
+        # typeName
+        added = []
+        if self.coDom:
+            sortedcoDomList = [item for item in sortedList if item in set(self.majList)] # Need this as cant pass directly through the coDomDict.keys() as these are not sorted and can't parse through sortedList directly as some of them may not be in the coDOmdict and so will through error at the conditional
+            namePart1 = '/'.join([CLJ(codomintra) for codomintra in sortedcoDomList]) # Add any coDom intras first
+            added.extend([codomintra for codomintra in sortedcoDomList])
+            namePart2 = '-'.join([CLJ(noncoDomIntras) for noncoDomIntras in sortedList if noncoDomIntras not in added]) # If it isn't already in the name because it is a codom then add in order of abundance within the sample
+            if len(namePart2) > 0: # Only if there is something in name Part 2
+                typeName = '-'.join([namePart1, namePart2])
+            else:
+                typeName = namePart1
+        else:
+            typeName = '-'.join([CLJ(noncoDomIntras) for noncoDomIntras in sortedList if noncoDomIntras not in added])
+        #Delete these two lines if you want to go back to creating names for the final and inital types instead of assigning final types the inital types name without taking
+        # into consideration any changes in the intra abundances
+        self.name = typeName
+        return
+
 
     def generateIntrasInfoFinal(self):
         '''
@@ -217,23 +237,27 @@ class symboidiniumDBTypeEntry:
 
 
         if len(self.footPrint) > 1:
-            for SAMPLEKEY in self.samplesFoundInAsFinal:
-                SAMPLE = config.abundanceList[SAMPLEKEY]
-                for CLADECOLLECTION in SAMPLE.cladeCollectionList:
-                    if CLADECOLLECTION.clade == self.clade:
-                        totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in listOfIntrasInOrderOfAbun])
-                        for i in range(len(self.footPrint)):
-                            self.intrasInfoFinal[i][0].append(SAMPLE.intraAbundanceDict[listOfIntrasInOrderOfAbun[i]]/totSeqs)
-                        # Here we add the ratios info
-                        # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
-                        # by the abundance of the most abundant intra so as to get a ratio
-                        # The ratios of the first intra will always be 1 as we are dividing by itself
-                        for i in range(len(self.footPrint)):
-                            self.intrasInfoFinal[i][3].append(self.intrasInfoFinal[i][0][-1]/self.intrasInfoFinal[0][0][-1])
+            if len(self.samplesFoundInAsFinal) > 1:
+                for SAMPLEKEY in self.samplesFoundInAsFinal:
+                    SAMPLE = config.abundanceList[SAMPLEKEY]
+                    for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                        if CLADECOLLECTION.clade == self.clade:
+                            totSeqs = sum([SAMPLE.intraAbundanceDict[intra] for intra in listOfIntrasInOrderOfAbun])
+                            for i in range(len(self.footPrint)):
+                                self.intrasInfoFinal[i][0].append(SAMPLE.intraAbundanceDict[listOfIntrasInOrderOfAbun[i]]/totSeqs)
+                            # Here we add the ratios info
+                            # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
+                            # by the abundance of the most abundant intra so as to get a ratio
+                            # The ratios of the first intra will always be 1 as we are dividing by itself
+                            for i in range(len(self.footPrint)):
+                                self.intrasInfoFinal[i][3].append(self.intrasInfoFinal[i][0][-1]/self.intrasInfoFinal[0][0][-1])
 
-            for i in range(len(listOfIntrasInOrderOfAbun)):
-                self.intrasInfoFinal[i][1] = sum(self.intrasInfoFinal[i][0])/len(self.intrasInfoFinal[i][0])
-                self.intrasInfoFinal[i][2] = statistics.stdev(self.intrasInfoFinal[i][0])
+                for i in range(len(listOfIntrasInOrderOfAbun)):
+                    try:
+                        self.intrasInfoFinal[i][1] = sum(self.intrasInfoFinal[i][0])/len(self.intrasInfoFinal[i][0])
+                    except:
+                        a = 6
+                    self.intrasInfoFinal[i][2] = statistics.stdev(self.intrasInfoFinal[i][0])
 
 
     def updateSamplesFoundIn(self, additionalSamplesFoundIn):
