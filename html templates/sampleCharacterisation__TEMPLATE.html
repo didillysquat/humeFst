@@ -1,0 +1,34 @@
+<table>
+<tr style='font-weight:bold; font-size:150%'>
+<td colspan="5" >
+2.0 Sample Characterisation
+</td>
+</tr>
+{% for row, style in outPut %}
+{% if row != None %}
+	{% if style == 'title' %}
+	<tr style="font-weight:bold">
+		{% for cell in row %}
+			<td colspan="5">{{cell}}</td>
+		{% endfor %}
+	</tr>
+	{% elif style == 'notBold' %}
+	<tr>
+		{% for cell in row %}
+			{% if cell != None %}
+			<td>{{cell}}</td>
+			{% elif cell == None %}
+			<td></td>
+			{% endif %}
+		{% endfor %}
+	</tr>
+	{% elif style == 'sample' %}
+	<tr style="font-weight:bold">
+			<td colspan="5">{{row}}</td>
+	</tr>
+	{% endif %}
+{% else %}
+	<tr><td><br/></td></tr>
+{% endif %}
+{% endfor %}
+</table>
