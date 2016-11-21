@@ -1858,6 +1858,8 @@ def inferFinalSymbiodiniumTypesIterative():
     a = sum(avNumFinTypes)/len(avNumFinTypes)
     print('Av={0}'.format(str(a)))
 
+    multiModalDetection()
+
     # Here we do the first iteration of trying to get more types in
     typesAdded = 1
     typesAddedDict = {}
@@ -1872,18 +1874,22 @@ def inferFinalSymbiodiniumTypesIterative():
                     if CLADECOLLECTION.clade == CLADE:  # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
                         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                             if FINALTYPECLADECOLLECTION.clade == CLADE:
-                                if SAMPLE.name == 'ADa_003':
-                                    a = 6
                                 for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
+                                    # if TYPENAME == 'seq162-seq168-C1-seq184':
+                                    #     a=5
+                                    #     if len(config.typeDB[TYPENAME].samplesFoundInAsFinal) > 0:
+                                    #         a = 'fromg'
                                     TYPE = config.typeDB[TYPENAME]
                                     # If type has lost all support then no longer considered
                                     if len(TYPE.footPrint) > 1 and len(TYPE.samplesFoundInAsFinal) > 0:
                                         if ratioAcceptable(SAMPLE, TYPE, 'FINAL') == False:
                                             continue
-                                    else:
+                                    elif len(TYPE.footPrint) == 1 and len(TYPE.samplesFoundInAsFinal) > 0:
                                         # Check that single intra footprint/types found at over 0.05 of cladalcollection
                                         if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]] / (SAMPLE.totalSeqs * CLADECOLLECTION.cladalProportion) < 0.1:
                                             continue
+                                    else: # If TYPE.samplesFoundInAsFinal not > 0
+                                        continue
 
                                     typeToDel = []
                                     isSubSet = False
@@ -1921,7 +1927,7 @@ def inferFinalSymbiodiniumTypesIterative():
         a = sum(avNumFinTypes) / len(avNumFinTypes)
         print('Av={0}'.format(str(a)))
 
-    multiModalDetection()
+
 
     # TODO Once we have completed the multiModal Detection it may be worth re iterating the type assignments?
 
@@ -1942,6 +1948,9 @@ def ratioAcceptable(sample, symtype, initialorfinal):
     :param symtype: A config.typeDB entry
     :return: Bool representing whether the proposed type should be accepted.
     '''
+    if initialorfinal == 'FINAL':
+        if len(symtype.samplesFoundInAsFinal)<1:
+            return False
     sampleCladalProportion = 0
     for cladecollection in sample.cladeCollectionList:
         if cladecollection.clade == symtype.clade:
@@ -1986,36 +1995,18 @@ def ratioAcceptable(sample, symtype, initialorfinal):
             muOfTypeDBEntry = sum(newList)/len(newList)
         except:
             a = 6
+
         maxR, minR = max(newList), min(newList)
-        if symtype.name == 'Otu15163/C1':
-            # newlist = [x if x < 1 else (1 + 1/x) for x in listOfRatios]
-            # x_grid = np.linspace(0, 2, 1000)
-            # print(str(plt.isinteractive()))
-            # plt.interactive(False)
-            # fig, ax = plt.subplots()
-            # kde = gaussian_kde(newlist)
-            # pdf = kde.evaluate(x_grid)
-            # #TODO
-            # # When considering types for bionomial distributions, i.e. being several types we should maybe have
-            # # a magnitude minimum for defining the types as two
-            # # This could be a proportion of the major peak
-            # c = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1  # local max
-            # modes = len(c)
-            # ax.plot(x_grid, pdf, color='blue', alpha=0.5, lw=3)
-            #
-            # plt.show()
-            # a=6
-            # plt.hist(newlist,100)
-            # plt.show()
-            a= 6
-        if ratioToCheck  < minR/2or ratioToCheck > maxR*2:
+
+
+        if ratioToCheck  < minR/1.1 or ratioToCheck > maxR*1.1:
             return  False
     return True
 
 
 def multiModalDetection():
     # Here we identify if there is a bionomial distribution in coDom types between the two most abundant intras
-    # If we find a binomial distribution which meets our parameters for a clearly being two separate distributions
+    # If we find a binomial distribution which meets our parameters for clearly being two separate distributions
     # then we separate the type into two new types
     config.typeDB.generateIntrasInfoFinalForAllTypes()
     typesToCreate = []
@@ -2028,63 +2019,56 @@ def multiModalDetection():
                 #Check only the first two most abundant intras of the coDom
                 # for i in range(1, len(TYPE.sortedDefiningIts2Occurances)):
                 listOfRatios = TYPE.intrasInfoFinal[1][3]
-                newlist = [x if x < 1 else (1 + 1 / x) for x in listOfRatios]
                 x_grid = np.linspace(-2, 4, 2000)
-                kde = gaussian_kde(newlist)
+                kde = gaussian_kde(listOfRatios)
                 pdf = kde.evaluate(x_grid)
-                # TODO
-                # When considering types for bionomial distributions, i.e. being several types we should maybe have
-                # a magnitude minimum for defining the types as two
-                # This could be a proportion of the major peak
-                a = np.diff(pdf)
-                b = np.sign(np.diff(pdf))
-                d = np.diff(np.sign(np.diff(pdf)))
-                e = (np.diff(np.sign(np.diff(pdf))) < 0)
-                f = (np.diff(np.sign(np.diff(pdf))) < 0).nonzero()
-                g = (np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1
+
+
                 # returns index of the local max's in pdf
                 # Using these index on x_grid will give you x of maxs, use on pdf will give you y
                 c = list((np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1)
                 modes = len(c)
 
-                plotHists(pdf, x_grid, newlist, TYPE.name)
+                plotHists(pdf, x_grid, listOfRatios, TYPE.name)
 
                 # If this appears to be a bimodal distribution
 
                 if modes == 2:
-                    # Identify which peak is biggest
-                    # Peak hieght must be at least half the size of each other
-                    yDiffValid = False
-                    if pdf[c[0]] > pdf[c[1]]:
-                        if pdf[c[1]] / pdf[c[0]] > 0.5:
-                            yDiffValid = True
-                    else:
-                        if abs(pdf[c[0]] / pdf[c[1]]) > 0.5:
-                            vDiffValid = True
-
+                    # Must be sufficient separation between the peaks in x axis
                     xDiffValid = False
-                    if x_grid[c[1]] - x_grid[c[0]] > 0.5:
+                    if x_grid[c[1]] - x_grid[c[0]] > 0.7:
                         xDiffValid = True
+                    # Must also be sufficient diff between minima y and small peak y
+                    # This represents the x spread and overlap of the two peaks
+                    d = list((np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1) # max and min indices
+                    if min([pdf[d[0]], pdf[d[2]]])/pdf[d[1]] > (2/3): # Insufficient separation of peaks
+                        xDiffValid = False
+
 
                     # Then here we have a candidate for separating into two types
                     # Seperate the samples either side of the minima x axis
                     # Find the minimum x value and then use this ratio as the separator for the two modes
                     # Because the ratio information was put in the same order as the samplesFoundInAsFinal
                     # we can work out which samples are which side of the ratio
-                    if yDiffValid and xDiffValid:
+                    if xDiffValid:
                         orderedListOfSamplesInType = TYPE.samplesFoundInAsFinal
                         samplesForTypeA = []
                         samplesForTypeB = []
+                        # returns the index of local max and mins in pdf
+                        # index 1 is the min
                         minX = x_grid[list(((np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1))[1]]
-                        for i in range(len(newlist)):
-                            if newlist[i] < minX:
+                        # for each sample assign ratio to one of the two new types
+                        for i in range(len(listOfRatios)):
+                            if listOfRatios[i] < minX:
                                 samplesForTypeA.append(orderedListOfSamplesInType[i])
                             else:
                                 samplesForTypeB.append(orderedListOfSamplesInType[i])
-                        newTypeA = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeA, footprint=TYPE.footPrint)
-                        newTypeB = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeB, footprint=TYPE.footPrint)
-                        typesToCreate.extend([newTypeA, newTypeB])
-                        typesToDelete.append(TYPE.name)
+                        # Only create new types if each type is supported by three samples
+                        if len(samplesForTypeA) >= 3 and len(samplesForTypeB) >=3:
+                            newTypeA = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeA, footprint=TYPE.footPrint)
+                            newTypeB = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeB, footprint=TYPE.footPrint)
+                            typesToCreate.extend([newTypeA, newTypeB])
+                            typesToDelete.append(TYPE.name)
                 a = 6
     for types in typesToCreate:
         # Check to make sure we haven't ended up with two types with the same name
@@ -2943,30 +2927,30 @@ def CreateHumeFstMatrices():
 
 
 
-    ######
-    # At this point we have the initial and final types identified as well as their supports. We also have the fst values identified which are what we need for the graphical outputs.
-    # From this point on we have to:
-    # Create the matrices, header files and info files to plot data in R
-    # Write all of the above to the html output.
-
-    # Write out the graphics so that the writeTypeBasedOutput can write them into the html
-    # This produces plots for cladal and subcladal/maj levels
-    # For the cladal it produces both a Pareto and a 2D PC ordination of the calculated Fst values
-    print('Producing plots')
-    if config.args.developingMode:
-        try:
-            config.abundanceList = readByteObjectFromDefinedDirectory(
-                config.args.saveLocation + r'\serialized objects', 'abundanceListAfterPlotCreation')
-        except:
-            print(
-                'Missing Object: abundanceListAfterPlotCreation  not found in specified directory\n Creating from scratch...')
-            producePlots(finalLogTransedColDists)
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'abundanceListAfterPlotCreation', config.abundanceList)
-    else:
-        producePlots(finalLogTransedColDists)
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'abundanceListAfterPlotCreation', config.abundanceList)
+    # ######
+    # # At this point we have the initial and final types identified as well as their supports. We also have the fst values identified which are what we need for the graphical outputs.
+    # # From this point on we have to:
+    # # Create the matrices, header files and info files to plot data in R
+    # # Write all of the above to the html output.
+    #
+    # # Write out the graphics so that the writeTypeBasedOutput can write them into the html
+    # # This produces plots for cladal and subcladal/maj levels
+    # # For the cladal it produces both a Pareto and a 2D PC ordination of the calculated Fst values
+    # print('Producing plots')
+    # if config.args.developingMode:
+    #     try:
+    #         config.abundanceList = readByteObjectFromDefinedDirectory(
+    #             config.args.saveLocation + r'\serialized objects', 'abundanceListAfterPlotCreation')
+    #     except:
+    #         print(
+    #             'Missing Object: abundanceListAfterPlotCreation  not found in specified directory\n Creating from scratch...')
+    #         producePlots(finalLogTransedColDists)
+    #         writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+    #                                           'abundanceListAfterPlotCreation', config.abundanceList)
+    # else:
+    #     producePlots(finalLogTransedColDists)
+    #     writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
+    #                                       'abundanceListAfterPlotCreation', config.abundanceList)
 
     #TODO incorporate at somepoint
     # multiModalDetection()

@@ -235,9 +235,11 @@ class symboidiniumDBTypeEntry:
         listOfIntrasInOrderOfAbun = [a[0] for a in self.sortedDefiningIts2Occurances]
         self.intrasInfoFinal = [[[], 0, 0 , []] for intra in listOfIntrasInOrderOfAbun]
 
+        if self.name == 'seq162-seq168-C1-seq184':
+            a=4
 
         if len(self.footPrint) > 1:
-            if len(self.samplesFoundInAsFinal) > 1:
+            if len(self.samplesFoundInAsFinal) > 0:
                 for SAMPLEKEY in self.samplesFoundInAsFinal:
                     SAMPLE = config.abundanceList[SAMPLEKEY]
                     for CLADECOLLECTION in SAMPLE.cladeCollectionList:
@@ -249,15 +251,22 @@ class symboidiniumDBTypeEntry:
                             # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
                             # by the abundance of the most abundant intra so as to get a ratio
                             # The ratios of the first intra will always be 1 as we are dividing by itself
+                                # Important transformation of the ratios around 1
+                                # When ratio below 1 then plot actual value
+                                # When ratio above 1 must take inverse (ratio) and then plot its difference from 1 added to 1
                             for i in range(len(self.footPrint)):
-                                self.intrasInfoFinal[i][3].append(self.intrasInfoFinal[i][0][-1]/self.intrasInfoFinal[0][0][-1])
-
-                for i in range(len(listOfIntrasInOrderOfAbun)):
-                    try:
-                        self.intrasInfoFinal[i][1] = sum(self.intrasInfoFinal[i][0])/len(self.intrasInfoFinal[i][0])
-                    except:
-                        a = 6
-                    self.intrasInfoFinal[i][2] = statistics.stdev(self.intrasInfoFinal[i][0])
+                                ratio = self.intrasInfoFinal[i][0][-1]/self.intrasInfoFinal[0][0][-1]
+                                if ratio <= 1:
+                                    self.intrasInfoFinal[i][3].append(ratio)
+                                elif ratio > 1:
+                                    self.intrasInfoFinal[i][3].append(1+(1-(1/ratio)))
+                if len(self.samplesFoundInAsFinal) > 1:
+                    for i in range(len(listOfIntrasInOrderOfAbun)):
+                        try:
+                            self.intrasInfoFinal[i][1] = sum(self.intrasInfoFinal[i][0])/len(self.intrasInfoFinal[i][0])
+                        except:
+                            a = 6
+                        self.intrasInfoFinal[i][2] = statistics.stdev(self.intrasInfoFinal[i][0])
 
 
     def updateSamplesFoundIn(self, additionalSamplesFoundIn):
@@ -284,8 +293,17 @@ class symboidiniumDBTypeEntry:
                         # In the second list of the self.definingIntrasInfo, we divide the abundance of the given intra
                         # by the abundance of the most abundant intra so as to get a ratio
                         # The ratios of the first intra will always be 1 as we are dividing by itself
+                            # Important transformation of the ratios around 1
+                            # When ratio below 1 then plot actual value
+                            # When ratio above 1 must take inverse (ratio) and then plot its difference from 1 added to 1
                         for i in range(len(self.footPrint)):
-                            self.definingIntrasInfo[i][3].append(self.definingIntrasInfo[i][0][-1]/self.definingIntrasInfo[0][0][-1])
+                            ratio = self.definingIntrasInfo[i][0][-1] / self.definingIntrasInfo[0][0][-1]
+                            if ratio <= 1:
+                                self.definingIntrasInfo[i][3].append(ratio)
+                            elif ratio > 1:
+                                self.definingIntrasInfo[i][3].append(1 + (1 - (1 / ratio)))
+
+
 
             for i in range(len(listOfIntrasInOrderOfAbun)):
                 self.definingIntrasInfo[i][1] = sum(self.definingIntrasInfo[i][0])/len(self.definingIntrasInfo[i][0])
