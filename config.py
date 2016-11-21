@@ -44,9 +44,9 @@ def __init__():
     edBasePathPSBA = r'C:/Users/HUMEBC/Google Drive/EdData/screwaroundpsba'
     parser.add_argument('--rootLocation', default=cwd, help='Directory where the source code is found', metavar='PATH')
     # parser.add_argument('--inputLocation', default=cwd + '/raw data', help='Directory where the three input files are found', metavar='PATH')
-    parser.add_argument('--inputLocation', default=MEDBasePath + '/raw data',help='Directory where the three input files are found', metavar='PATH')
+    parser.add_argument('--inputLocation', default=cwd + '/MEDdata/raw data',help='Directory where the three input files are found', metavar='PATH')
     # parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
-    parser.add_argument('--saveLocation', default=MEDBasePath, help='Output directory for saving matrices and output tables',metavar='PATH')
+    parser.add_argument('--saveLocation', default=cwd + '/MEDdata', help='Output directory for saving matrices and output tables',metavar='PATH')
     # parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
     parser.add_argument('--rscriptLocation', default=cwd + '/R/R-3.3.0/bin/x64/Rscript.exe', help='Full path including Rscript.exe', metavar='PATH')
     
@@ -59,8 +59,8 @@ def __init__():
     parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
     parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
     
@@ -74,23 +74,24 @@ def __init__():
         sys.stderr = open(args.saveLocation + '/stderr.txt', 'w')
 
     # The masterFastaDict is simply a dict of the fasta file that contains all of the seqs that came out
+    # TODO possibly just start with the laJeunesse conversion of sequences right at the beginning here.
     global masterFastaDict
     masterFastaDict = createMasterFastaDict()
 
 
-    # Check to see if the R libraries required are installed
-    print('Checking for R libraries...')
-    RInstalledCorrectly = True
-    RInstalledCorrectly = checkRLibraries(RInstalledCorrectly)
+    # # Check to see if the R libraries required are installed
+    # print('Checking for R libraries...')
+    # RInstalledCorrectly = True
+    # RInstalledCorrectly = checkRLibraries(RInstalledCorrectly)
 
-    # Print when sucessful
-    # Go through the directory and check to see if any of the libraries are missing. If any are missing then RInstalledCorrectly = False
-
-    if RInstalledCorrectly:
-        print('Groovy, R libraries have been verified')
-    else: # not RInstalledCorrectly:
-        print('Ooops, R libraries missing. Installing...')
-        call([args.rscriptLocation, args.rootLocation + r"\.bat scripts\installRLibs.bat", args.rootLocation.replace('\\', '/')], shell=True)
+    # # Print when sucessful
+    # # Go through the directory and check to see if any of the libraries are missing. If any are missing then RInstalledCorrectly = False
+    #
+    # if RInstalledCorrectly:
+    #     print('Groovy, R libraries have been verified')
+    # else: # not RInstalledCorrectly:
+    #     print('Ooops, R libraries missing. Installing...')
+    #     call([args.rscriptLocation, args.rootLocation + r"\.bat scripts\installRLibs.bat", args.rootLocation.replace('\\', '/')], shell=True)
 
     global oursToLaJDict
     oursToLaJDict = None

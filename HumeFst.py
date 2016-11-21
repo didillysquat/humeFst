@@ -1872,53 +1872,64 @@ def inferFinalSymbiodiniumTypesIterative():
                 SAMPLE = config.abundanceList[SAMPLEKEY]
                 for CLADECOLLECTION in SAMPLE.cladeCollectionList:
                     if CLADECOLLECTION.clade == CLADE:  # Then this sample has a set of intras from the given clade that are above the given cladeCollectionCuttoff
+                        setOfIntrasInSample = set([occurance.name for occurance in SAMPLE.compComplement.listOfits2SequenceOccurances if occurance.clade == CLADE])
                         for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
                             if FINALTYPECLADECOLLECTION.clade == CLADE:
-                                for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
+                                # for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
+                                typeNameList = [typename for typename in config.typeDB.keys() if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes and config.typeDB[typename].clade == CLADE]
+                                for TYPENAME in typeNameList:
+
                                     # if TYPENAME == 'seq162-seq168-C1-seq184':
                                     #     a=5
                                     #     if len(config.typeDB[TYPENAME].samplesFoundInAsFinal) > 0:
                                     #         a = 'fromg'
                                     TYPE = config.typeDB[TYPENAME]
+                                    if TYPE.footPrint.issubset(setOfIntrasInSample):  # Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
                                     # If type has lost all support then no longer considered
-                                    if len(TYPE.footPrint) > 1 and len(TYPE.samplesFoundInAsFinal) > 0:
-                                        if ratioAcceptable(SAMPLE, TYPE, 'FINAL') == False:
+                                        if len(TYPE.footPrint) > 1 and len(TYPE.samplesFoundInAsFinal) > 0:
+                                            if ratioAcceptable(SAMPLE, TYPE, 'FINAL') == False:
+                                                continue
+                                        elif len(TYPE.footPrint) == 1 and len(TYPE.samplesFoundInAsFinal) > 0:
+                                            # Check that single intra footprint/types found at over 0.05 of cladalcollection
+                                            try:
+                                                if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]] / (SAMPLE.totalSeqs * CLADECOLLECTION.cladalProportion) < 0.1:
+                                                    continue
+                                            except:
+                                                a = 6
+                                        else: # If TYPE.samplesFoundInAsFinal not > 0
                                             continue
-                                    elif len(TYPE.footPrint) == 1 and len(TYPE.samplesFoundInAsFinal) > 0:
-                                        # Check that single intra footprint/types found at over 0.05 of cladalcollection
-                                        if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]] / (SAMPLE.totalSeqs * CLADECOLLECTION.cladalProportion) < 0.1:
-                                            continue
-                                    else: # If TYPE.samplesFoundInAsFinal not > 0
-                                        continue
 
-                                    typeToDel = []
-                                    isSubSet = False
-                                    for FINALTYPE in [config.typeDB[finaltype] for finaltype in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
-                                        if set(TYPE.footPrint).issubset(
-                                                set(FINALTYPE.footPrint)):  # Checks to see if new footprint is subset
-                                            isSubSet = True
-                                        if set(FINALTYPE.footPrint).issubset(set(
-                                                TYPE.footPrint)):  # If the current final types are subsets of the new type, delete all such types
-                                            typeToDel.append(FINALTYPE)
-                                    for toDel in typeToDel:
-                                        FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.remove(toDel.name)
+                                        typeToDel = []
+                                        isSubSet = False
                                         try:
-                                            config.typeDB[toDel.name].samplesFoundInAsFinal.remove(SAMPLE.name)
+                                            for FINALTYPE in [config.typeDB[finaltype] for finaltype in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
+                                                if set(TYPE.footPrint).issubset(
+                                                        set(FINALTYPE.footPrint)):  # Checks to see if new footprint is subset
+                                                    isSubSet = True
+                                                if set(FINALTYPE.footPrint).issubset(set(
+                                                        TYPE.footPrint)):  # If the current final types are subsets of the new type, delete all such types
+                                                    typeToDel.append(FINALTYPE)
                                         except:
-                                            a = 6
-                                        # Need to delete this sample from the found in final list for this type entry in the DB
-                                    if isSubSet == False:
-                                        FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(TYPE.name)
-                                        try:
-                                            config.typeDB[TYPE.name].samplesFoundInAsFinal.append(SAMPLE.name)
-                                        except:
-                                            a = 6
-                                        # Need to add this sample to the found in final list for this type entry in the DB
-                                        typesAdded += 1
-                                        if TYPE.name in typesAddedDict.keys():
-                                            typesAddedDict[TYPE.name] += 1
-                                        else:
-                                            typesAddedDict[TYPE.name] = 1
+                                            a = 5
+                                        for toDel in typeToDel:
+                                            FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.remove(toDel.name)
+                                            try:
+                                                config.typeDB[toDel.name].samplesFoundInAsFinal.remove(SAMPLE.name)
+                                            except:
+                                                a = 6
+                                            # Need to delete this sample from the found in final list for this type entry in the DB
+                                        if isSubSet == False:
+                                            FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(TYPE.name)
+                                            try:
+                                                config.typeDB[TYPE.name].samplesFoundInAsFinal.append(SAMPLE.name)
+                                            except:
+                                                a = 6
+                                            # Need to add this sample to the found in final list for this type entry in the DB
+                                            typesAdded += 1
+                                            if TYPE.name in typesAddedDict.keys():
+                                                typesAddedDict[TYPE.name] += 1
+                                            else:
+                                                typesAddedDict[TYPE.name] = 1
         avNumFinTypes = []
         for SAMPLEKEY in config.abundanceList.keys():
             SAMPLE = config.abundanceList[SAMPLEKEY]
@@ -1956,8 +1967,10 @@ def ratioAcceptable(sample, symtype, initialorfinal):
         if cladecollection.clade == symtype.clade:
             sampleCladalProportion = cladecollection.cladalProportion
     # Get the abundances of the intras for the type in the sample
-    abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra]/(sample.totalSeqs*sampleCladalProportion) for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
-
+    try:
+        abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra]/(sample.totalSeqs*sampleCladalProportion) for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
+    except:
+        a = 4
     # Make sure that at least one of the Majs is present above 5%
     # Make sure one of the Majs is the Maj
     majAbun = False
@@ -2029,7 +2042,7 @@ def multiModalDetection():
                 c = list((np.diff(np.sign(np.diff(pdf))) < 0).nonzero()[0] + 1)
                 modes = len(c)
 
-                plotHists(pdf, x_grid, listOfRatios, TYPE.name)
+                # plotHists(pdf, x_grid, listOfRatios, TYPE.name)
 
                 # If this appears to be a bimodal distribution
 
@@ -2041,7 +2054,7 @@ def multiModalDetection():
                     # Must also be sufficient diff between minima y and small peak y
                     # This represents the x spread and overlap of the two peaks
                     d = list((np.diff(np.sign(np.diff(pdf))) != 0).nonzero()[0] + 1) # max and min indices
-                    if min([pdf[d[0]], pdf[d[2]]])/pdf[d[1]] > (2/3): # Insufficient separation of peaks
+                    if pdf[d[1]]/min([pdf[d[0]], pdf[d[2]]]) > 0.85: # Insufficient separation of peaks
                         xDiffValid = False
 
 
@@ -2070,18 +2083,42 @@ def multiModalDetection():
                             typesToCreate.extend([newTypeA, newTypeB])
                             typesToDelete.append(TYPE.name)
                 a = 6
+    #TODO if binomials were found then it might be worth passing back through the types incase some of the
+    # new types have further splits in them
+
+    # del old types first so that there are minimal unique name conflicts
+    for types in typesToDelete:
+        #TODO sortedListOfFinalTypes will no longer be sorted. This should be sorted.
+        TYPE = config.typeDB[types]
+        for SAMPLENAME in TYPE.samplesFoundInAsFinal:
+            SAMPLE = config.abundanceList[SAMPLENAME]
+            for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                if FINALTYPECLADECOLLECTION.clade == TYPE.clade:
+                    FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.remove(types)
+        del config.typeDB[types]
+
+
     for types in typesToCreate:
         # Check to make sure we haven't ended up with two types with the same name
         if types.name not in config.typeDB.keys():
+            for SAMPLENAME in types.samplesFoundInAsFinal:
+                SAMPLE = config.abundanceList[SAMPLENAME]
+                for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                    if FINALTYPECLADECOLLECTION.clade == types.clade:
+                        FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(types.name)
             config.typeDB[types.name] = types
         else:
             for i in range(1,999):
                 types.name = types.name + '({0})'.format(str(i))
                 if types.name not in config.typesDB.keys():
+                    for SAMPLENAME in types.samplesFoundInAsFinal:
+                        SAMPLE = config.abundanceList[SAMPLENAME]
+                        for FINALTYPECLADECOLLECTION in SAMPLE.finalTypeCladeCollectionList:
+                            if FINALTYPECLADECOLLECTION.clade == types.clade:
+                                FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(types.name)
                     config.typeDB[types.name] = types
                     break
-    for types in typesToDelete:
-        del config.typeDB[types]
+
 
 def plotHists(pdf, x_grid, newlist, typename):
     plt.interactive(False)
