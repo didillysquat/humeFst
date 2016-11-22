@@ -277,12 +277,12 @@ def createFinalMatrixFromColDists(Fstcoldistdictsecond):
         FstMatrixCollection.append(FstMatrix)
     return FstMatrixCollection
 
-def writeByteObjectToDefinedDirectory(directory, objectString, object):
-    f = open(directory + '\\' + objectString, 'wb+')
+def writeByteObjectToDefinedDirectory(directory,object):
+    f = open(directory , 'wb+')
     pickle.dump(object, f)
 
-def readByteObjectFromDefinedDirectory(directory, objectname):
-    f = open(directory + '\\' + objectname, 'rb')
+def readByteObjectFromDefinedDirectory(directory):
+    f = open(directory,'rb')
     return pickle.load(f)
 
 def createFstColDists(cladeCollectionList, masterSeqDistancesDict):
@@ -594,7 +594,7 @@ def writeTypeBasedOutput2():
                         outPutDoc.append((['Type: {0}'.format(TYPE.name), '{0}:{1}'.format(str(len(TYPE.samplesFoundInAsInitial)), str(len(TYPE.samplesFoundInAsFinal)))], 'typeInfo'))
 
     # TRANSLATE OUTPUT DOC INTO HTML
-    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'/html templates'), trim_blocks=True)
     jinjaTemplate = jinjaEnvironment.get_template('typeCharacterisation__TEMPLATE.html')
     stringThing = jinjaTemplate.render(outPut=outPutDoc)
     htmlString = [a for a in stringThing.split('\n')]
@@ -1576,7 +1576,7 @@ def assignCladeCollections():
                 SAMPLE.addCladeCollection(cladeCollection(CLADE, config.args.cutOff, listofseqsabovecutoff=tempListOfits2SequenceOccurances, foundwithinsample= SAMPLE.name, cladalproportion=cladeSpecificSeqs/totalSeqs))
                 cladeCollectionCountDict[CLADE] =  cladeCollectionCountDict[CLADE] + 1
 
-    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict', cladeCollectionCountDict)
+    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/cladeCollectionCountDict', cladeCollectionCountDict)
     return cladeCollectionCountDict
 
 def inferFinalSymbiodiniumTypesOld():
@@ -1776,6 +1776,7 @@ def inferFinalSymbiodiniumTypesIterative():
     Then we can go through several iterations each time updating the intrainfo.
     We should keep track of some metric that will allow us to see when no more iterations are useful.
     Maybe we can track how many types were added to samples on each iteration'''
+
     print('Running inferFinalSymbiodiniumTypes()')
     avNumFinTypes = []
     dictOfTypesToCheckInIterations = {}
@@ -1821,9 +1822,7 @@ def inferFinalSymbiodiniumTypesIterative():
                                     if SAMPLE.intraAbundanceDict[list(TYPE.footPrint)[0]]/(SAMPLE.totalSeqs*CLADECOLLECTION.cladalProportion) < 0.1:
                                         notAcceptedcount += 1
                                         continue
-                                #Here this is an accepted type. I want to see what read numbers the intras were found at
-                                pear = TYPE.name
-                                apple = ' '.join([str(SAMPLE.intraAbundanceDict[intra]) for intra in TYPE.footPrint])
+                                #Here this is an accepted type.
                                 typeToDel = []
                                 isSubSet = False
                                 for finaltype in finalTypesList:
@@ -1878,7 +1877,8 @@ def inferFinalSymbiodiniumTypesIterative():
                                 # for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
                                 typeNameList = [typename for typename in config.typeDB.keys() if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes and config.typeDB[typename].clade == CLADE]
                                 for TYPENAME in typeNameList:
-
+                                    if 'C3-ST-seq170' in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes and TYPENAME == 'C3-ST-seq178-seq170':
+                                        a = 'foo'
                                     # if TYPENAME == 'seq162-seq168-C1-seq184':
                                     #     a=5
                                     #     if len(config.typeDB[TYPENAME].samplesFoundInAsFinal) > 0:
@@ -1940,7 +1940,7 @@ def inferFinalSymbiodiniumTypesIterative():
 
 
 
-    # TODO Once we have completed the multiModal Detection it may be worth re iterating the type assignments?
+
 
     print('Completed inferFinalSymbiodiniumTypes()')
 
@@ -1967,10 +1967,9 @@ def ratioAcceptable(sample, symtype, initialorfinal):
         if cladecollection.clade == symtype.clade:
             sampleCladalProportion = cladecollection.cladalProportion
     # Get the abundances of the intras for the type in the sample
-    try:
-        abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra]/(sample.totalSeqs*sampleCladalProportion) for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
-    except:
-        a = 4
+
+    abundancesOfIntrasInSample = [sample.intraAbundanceDict[intra]/(sample.totalSeqs*sampleCladalProportion) for intra in [a[0] for a in symtype.sortedDefiningIts2Occurances]]
+
     # Make sure that at least one of the Majs is present above 5%
     # Make sure one of the Majs is the Maj
     majAbun = False
@@ -1983,38 +1982,62 @@ def ratioAcceptable(sample, symtype, initialorfinal):
             majMax = majsAbundance
     if majAbun == False:
         return False
+    # Checks to see that one of the non-maj intras is not in higher abundance than the maj
     if max(abundancesOfIntrasInSample) > majMax:
         return False
 
     ratiosOfIntrasForTypeInSample = []
     for i in range(len(abundancesOfIntrasInSample)):
         ratiosOfIntrasForTypeInSample.append(abundancesOfIntrasInSample[i]/abundancesOfIntrasInSample[0])
+
     # Now work through each of the ratios, starting with the second and compare to the ratios of the typeDB entry
     for i in range(1, len(abundancesOfIntrasInSample)):
+        # If an intra is bigger than the maj, this should be relected in the ratio
         if ratiosOfIntrasForTypeInSample[i] > 1:
-            ratioToCheck = 1/ratiosOfIntrasForTypeInSample[i]
+            ratioToCheck = 1 + (1 - (1 / ratiosOfIntrasForTypeInSample[i]))
         else:
             ratioToCheck = ratiosOfIntrasForTypeInSample[i]
         if initialorfinal == 'INITIAL':
             listOfRatios = symtype.definingIntrasInfo[i][3]
         elif initialorfinal == 'FINAL':
             listOfRatios = symtype.intrasInfoFinal[i][3]
-        # For ratios where an intra abun is greater than the maj
-        if symtype.coDom:
-            newList = [x if x < 1 else (1/x) for x in listOfRatios]
-        else:
-            newList = listOfRatios
-        try:
-            muOfTypeDBEntry = sum(newList)/len(newList)
-        except:
-            a = 6
-
-        maxR, minR = max(newList), min(newList)
 
 
-        if ratioToCheck  < minR/1.1 or ratioToCheck > maxR*1.1:
+        maxR, minR = max(listOfRatios), min(listOfRatios)
+
+        # This is a little tricky but we allow for a 10% increase/decrease on the current deviation from the ratio
+        # separately considering above, below
+        thresholdValue = 0.1
+        maxRThreshold = calcThresh(maxR, thresholdValue)
+        if ratioToCheck  < minR/(1+thresholdValue) or ratioToCheck > maxRThreshold:
             return  False
+        else:
+            # Check to see what absolute read values we are dealing with here
+            # If very small then add the type name to a list
+            seqsInClade = sample.totalSeqs*sampleCladalProportion
+            a = min(abundancesOfIntrasInSample[i-1]*seqsInClade, abundancesOfIntrasInSample[i]*seqsInClade)
+            if a < 4:
+                someTin = 'G'
     return True
+
+def calcThresh(maxr, thv):
+    '''
+    This is a somewhat complicated transformation of the ratio data
+    to attempt to confom to a linear incease of ratios above the 1 ratio
+    Essentially, the further above or below 1 the ratio goes, the smaller the deviance from that ratio is allowed
+    '''
+    maxR = maxr
+    if maxR* (1 + thv) > 1:
+
+        if maxR < 1:
+            # Obtain new >1 maxR val
+            maxR = maxR*thv
+            # Transpose to linear system
+            maxR = 1+(1-(1/maxR))
+        # Calc new thresh val as a thv% increase on the < 1 ratio equivalent
+        return maxR + (thv*(1-(maxR-1)))
+    else:
+        return maxr * (1 + thv)
 
 
 def multiModalDetection():
@@ -2078,8 +2101,8 @@ def multiModalDetection():
                                 samplesForTypeB.append(orderedListOfSamplesInType[i])
                         # Only create new types if each type is supported by three samples
                         if len(samplesForTypeA) >= 3 and len(samplesForTypeB) >=3:
-                            newTypeA = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeA, footprint=TYPE.footPrint)
-                            newTypeB = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeB, footprint=TYPE.footPrint)
+                            newTypeA = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeA, footprint=TYPE.footPrint, binomparentinitsamples=TYPE.samplesFoundInAsInitial)
+                            newTypeB = symboidiniumDBTypeEntry(clade = TYPE.clade, samplename = samplesForTypeB, footprint=TYPE.footPrint, binomparentinitsamples=TYPE.samplesFoundInAsInitial)
                             typesToCreate.extend([newTypeA, newTypeB])
                             typesToDelete.append(TYPE.name)
                 a = 6
@@ -2182,7 +2205,7 @@ def writeSampleCharacterisationOutput():
 
         outPut.append((None, 'blankLine'))
 
-    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'\html templates'), trim_blocks=True)
+    jinjaEnvironment = Environment(loader=FileSystemLoader(config.args.rootLocation + r'/html templates'), trim_blocks=True)
     jinjaTemplate = jinjaEnvironment.get_template('sampleCharacterisation__TEMPLATE.html')
     stringThing = jinjaTemplate.render(outPut=outPut)
     htmlString = [a for a in stringThing.split('\n')]
@@ -2508,7 +2531,7 @@ def assignCladeCollectionsPermute(cutoff):
                 SAMPLE.addCladeCollection(cladeCollection(CLADE, cutoff, listofseqsabovecutoff=tempListOfits2SequenceOccurances, foundwithinsample= SAMPLE.name, cladalproportion=cladeSpecificSeqs/totalSeqs))
                 cladeCollectionCountDict[CLADE] =  cladeCollectionCountDict[CLADE] + 1
 
-    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict', cladeCollectionCountDict)
+    writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/cladeCollectionCountDict', cladeCollectionCountDict)
     return cladeCollectionCountDict
 
 def assignInitialTypesPermute(cladecollectioncountdict):
@@ -2835,17 +2858,15 @@ def CreateHumeFstMatrices():
     print('Beginning clade collection assignment')
     if config.args.developingMode:
         try:
-            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListCladeCollectionAssigned')
-            cladeCollectionCountDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'cladeCollectionCountDict')
+            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListCladeCollectionAssigned')
+            cladeCollectionCountDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/cladeCollectionCountDict')
         except:
             print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
             cladeCollectionCountDict = assignCladeCollections()
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'abundanceListCladeCollectionAssigned', config.abundanceList)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/bundanceListCladeCollectionAssigned', config.abundanceList)
     else:
         cladeCollectionCountDict = assignCladeCollections()
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'abundanceListCladeCollectionAssigned', config.abundanceList)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListCladeCollectionAssigned', config.abundanceList)
     print('Clade collection assigned')
 
 
@@ -2865,20 +2886,17 @@ def CreateHumeFstMatrices():
     print('Assigning initial types')
     if config.args.developingMode:
         try:
-            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned')
-            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'typeDB')
+            config.abundanceList = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListInitialTypesAssigned')
+            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB')
         except:
             print('Missing Object: abundanceListCladeCollectionAssigned not found in specified directory\n Creating from scratch...')
             assignInitialTypes(cladeCollectionCountDict)
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'abundanceListInitialTypesAssigned', config.abundanceList)
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'typeDB', config.typeDB)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListInitialTypesAssigned', config.abundanceList)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB', config.typeDB)
     else:
         assignInitialTypes(cladeCollectionCountDict)  # This now assigns initial types to the samples' cladeCollections
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'abundanceListInitialTypesAssigned', config.abundanceList)
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'typeDB', config.typeDB)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListInitialTypesAssigned', config.abundanceList)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB', config.typeDB)
     print('Assigned initial types')
 
     ######
@@ -2904,23 +2922,18 @@ def CreateHumeFstMatrices():
     if config.args.developingMode:
         try:
             config.abundanceList = readByteObjectFromDefinedDirectory(
-                config.args.saveLocation + r'\serialized objects', 'abundanceListWithFinalTypes')
-            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                                               'typeDB')
+                config.args.saveLocation + r'/serialized objects/abundanceListWithFinalTypes')
+            config.typeDB = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB')
         except:
             print(
                 'Missing Object: abundanceListWithFinalTypes  not found in specified directory\n Creating from scratch...')
             inferFinalSymbiodiniumTypesIterative()
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'abundanceListWithFinalTypes', config.abundanceList)
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                              'typeDB', config.typeDB)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListWithFinalTypes', config.abundanceList)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB', config.typeDB)
     else:
         inferFinalSymbiodiniumTypesIterative()
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'abundanceListWithFinalTypes', config.abundanceList)
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                          'typeDB', config.typeDB)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/abundanceListWithFinalTypes', config.abundanceList)
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/typeDB', config.typeDB)
     print('Final type inference complete')
 
 
@@ -2933,14 +2946,14 @@ def CreateHumeFstMatrices():
     print('Calculating sequence distances')
     if config.args.createMasterSeqDistancesFromScratch == False or config.args.developingMode:
         try:
-            masterSeqDistancesDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict')
+            masterSeqDistancesDict = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/masterSeqDistancesDict')
         except:
             print('Missing Object: masterSeqDistancesDict  not found in specified directory\n Creating from scratch...')
             masterSeqDistancesDict = createMasterSeqDistancesNonMothur()
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects','masterSeqDistancesDict', masterSeqDistancesDict)
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/masterSeqDistancesDict', masterSeqDistancesDict)
     else:
         masterSeqDistancesDict = createMasterSeqDistancesNonMothur()
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'masterSeqDistancesDict',
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/masterSeqDistancesDict',
                                           masterSeqDistancesDict)
     print('Sequence distance calculation complete')
 
@@ -2949,16 +2962,15 @@ def CreateHumeFstMatrices():
     print('Calculating Fst distances')
     if config.args.createFinalFstColDistsFromScratch == False or config.args.developingMode:
         try:
-            finalLogTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'\serialized objects',
-                                                                    'finalLogTransedColDists')
+            finalLogTransedColDists = readByteObjectFromDefinedDirectory(config.args.saveLocation + r'/serialized objects/finalLogTransedColDists')
         except:
             print('Missing Object: finalLogTransedColDists not found in specified directory\n Creating from scratch...')
             finalLogTransedColDists = createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict)
-            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'finalLogTransedColDists',
+            writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/finalLogTransedColDists',
                                               finalLogTransedColDists)
     else:
         finalLogTransedColDists = createLogTransedFstColDistsFromFinalTypes(masterSeqDistancesDict)
-        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'\serialized objects', 'finalLogTransedColDists',
+        writeByteObjectToDefinedDirectory(config.args.saveLocation + r'/serialized objects/finalLogTransedColDists',
                                           finalLogTransedColDists)
     print('Fst distances calculated')
 

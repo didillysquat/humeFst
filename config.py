@@ -57,12 +57,12 @@ def __init__():
     
     # Caching
     parser.add_argument('--developingMode', type = bool, default =False, metavar='TRUE|FALSE')
-    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createAbundanceListFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
+    parser.add_argument('--createSeqToCladeDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     parser.add_argument('--createFinalFstColDistsFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     parser.add_argument('--createMasterSeqDistancesFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     # parser.add_argument('--createFstColDistsFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
-    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=False, metavar='TRUE|FALSE')
+    parser.add_argument('--createOursToLaJDictFromScratch', type=bool, default=True, metavar='TRUE|FALSE')
     
     global args
     args = parser.parse_args()
@@ -97,12 +97,12 @@ def __init__():
     oursToLaJDict = None
     if not args.createOursToLaJDictFromScratch or args.developingMode:
         try:
-            oursToLaJDict = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects', 'oursToLaJDict')
+            oursToLaJDict = readByteObjectFromDefinedDirectory(args.saveLocation + r'/serialized objects/oursToLaJDict')
         except:
             print('Missing Object', 'oursToLaJDict object not found in specified directory\n Creating from scratch...')
     if oursToLaJDict == None:
         oursToLaJDict = createOursToLaJDict()
-        writeByteObjectToDefinedDirectory(args.saveLocation + r'\serialized objects', 'oursToLaJDict', oursToLaJDict)
+        writeByteObjectToDefinedDirectory(args.saveLocation + r'/serialized objects/oursToLaJDict', oursToLaJDict)
 
 
 
@@ -113,8 +113,7 @@ def __init__():
     seqToFFPProbDistDict = None
     if not args.createSeqToCladeDictFromScratch or args.developingMode:
         try:
-            tempResult = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects',
-                                                               'seqNameToCladeDict')
+            tempResult = readByteObjectFromDefinedDirectory(args.saveLocation + r'/serialized objects/seqNameToCladeDict')
             seqNameToCladeDict = tempResult[0]
             seqToFFPProbDistDict = tempResult[1]
         except:
@@ -123,7 +122,7 @@ def __init__():
         tempResult = createSeqNameToCladeDict(masterFastaDict, 3)
         seqNameToCladeDict = tempResult[0]
         seqToFFPProbDistDict = tempResult[1]
-        writeByteObjectToDefinedDirectory(args.saveLocation + r'\serialized objects', 'seqNameToCladeDict', tempResult)
+        writeByteObjectToDefinedDirectory(args.saveLocation + r'/serialized objects/seqNameToCladeDict', tempResult)
     print('Completed assigning clade to sequences')
 
     # Create AbundanceList
@@ -131,13 +130,13 @@ def __init__():
     abundanceList = None
     if not args.createAbundanceListFromScratch or args.developingMode:
         try:
-            abundanceList = readByteObjectFromDefinedDirectory(args.saveLocation + r'\serialized objects', 'abundanceList')
+            abundanceList = readByteObjectFromDefinedDirectory(args.saveLocation + r'/serialized objects/abundanceList')
         except:
             print('Missing Object: abundanceList not found in specified directory\n Creating from scratch...')
     if abundanceList == None:
         abundanceList = {SAMPLE.name: SAMPLE for SAMPLE in createAbundnanceListMainMPRaw()}
         # abundanceList = sorted(abundanceList, key=lambda x: x.name)
-        writeByteObjectToDefinedDirectory(args.saveLocation + r'\serialized objects','abundanceList', abundanceList)
+        writeByteObjectToDefinedDirectory(args.saveLocation + r'/serialized objects/abundanceList', abundanceList)
 
 
     global typeDB
@@ -345,8 +344,8 @@ def JSD(P, Q): # Another version of Jensen-shannon divergence making use of the 
     _M = 0.5 * (xp + xq)
     return 0.5 * (entropy(xp, _M) + entropy(xq, _M))
 
-def readByteObjectFromDefinedDirectory(directory, objectname):
-    f = open(directory + '\\' + objectname, 'rb')
+def readByteObjectFromDefinedDirectory(directory):
+    f = open(directory, 'rb')
     return pickle.load(f)
 
 def createAbundnanceListMainMP():
@@ -408,12 +407,8 @@ def createAbundnanceListMainMPRaw():
     print('Finished createAbudnanceListMainMP()')
     return list(resultList)
 
-def writeByteObjectToDefinedDirectory(directory, objectString, object):
-    try:
-        os.makedirs(directory)
-    except FileExistsError:
-        pass
-    f = open(directory + '\\' + objectString, 'wb+')
+def writeByteObjectToDefinedDirectory(directory,object):
+    f = open(directory, 'wb+')
     pickle.dump(object, f)
 
 def writeListToDestination(destination, listToWrite):
@@ -626,9 +621,9 @@ def createAbundanceListMultiProcessClassesRaw(chunk, fastaDict, seqnametocladedi
         # Sort the its2OccuranceList according to their abundance
         sortedIts2SequenceOccuranceList = sorted(its2SequenceOccuranceList, key=lambda x: x.abundance, reverse=True)
         tempCompleteComplement = completeComplement(sortedIts2SequenceOccuranceList)
-        # We need to calculate the total seqs at some point
-        outPut.append(sample(name=chunk[0][col], compComplement=tempCompleteComplement, hostTaxon=None, region=None, reef=None, totalSeqs=totSeqs))
-
+        # Only create sample if it has at least 100 totSeqs
+        if totSeqs > 99:
+            outPut.append(sample(name=chunk[0][col], compComplement=tempCompleteComplement, hostTaxon=None, region=None, reef=None, totalSeqs=totSeqs))
         print(multiprocessing.current_process().name + ' ' + str(col))
     return outPut
 

@@ -1,5 +1,8 @@
 import csv
 import os
+import statistics
+import numpy as np
+import matplotlib.pyplot as plt
 path = r'C:/Users/HUMEBC/Google Drive/EdData/screwaroundpsba/'
 base = r'C:/Users/HUMEBC/Google Drive/EdData/'
 import pickle
@@ -135,7 +138,7 @@ def createMEDInputFas(cladedictpicklefile, rawabundancefiledir, fastafiledir, ou
         writeListToDestination('{0}/fastaForMed{1}.fas'.format(outputdir, cladeList[i]), newfastaFile[i])
     return
 
-#TODO combine the MEDoutputs for each clade to get back to a single input fasta and count paired set
+
 def combineMultiCladeMED():
     cladeList = ['A', 'C', 'D']
     cd = os.getcwd()
@@ -215,6 +218,85 @@ def combineMultiCladeMED():
     write2DListToDestination('{0}/rawData/testingMED/completeMedFasta', completeMEDFasta)
 
 
+def prodIntraPlotSimilarTypes():
+    cwd = os.path.dirname(__file__)
+    global abundanceList
+    abundanceList = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/abundanceListWithFinalTypes'.format(cwd))
+    global typeDB
+    typeDB = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/typeDB'.format(cwd))
+    oTLJD = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
 
+    TYPEONE = typeDB['C3-ST-seq170']
+    TYPETWO = typeDB['C3-ST-seq178-seq170']
 
-combineMultiCladeMED()
+    # Add the intras in the order form the largest type's footprint first
+    orderedListOfIntras = max([[a[0] for a in TYPEONE.sortedDefiningIts2Occurances], [a[0] for a in TYPETWO.sortedDefiningIts2Occurances]], key=len )
+    # Then add any remaining intras if not already in list
+    try:
+        orderedListOfIntras.extend([intra for intra in [a[0] for a in TYPEONE.sortedDefiningIts2Occurances] if intra not in b])
+    except:
+        pass
+    try:
+        orderedListOfIntras.extend([intra for intra in [a[0] for a in TYPETWO.sortedDefiningIts2Occurances] if intra not in b])
+    except:
+        pass
+
+    typeOneInfo = [[] for i in range(4)]
+    typeTwoInfo = [[] for i in range(4)]
+
+    typeOneInfo = popIntraInfo(TYPEONE, orderedListOfIntras, typeOneInfo)
+    typeTwoInfo = popIntraInfo(TYPETWO, orderedListOfIntras, typeTwoInfo)
+
+    # Here we have the info we need to make the pots
+    typeOneMeans = typeOneInfo[2]
+    typeOneStDevs = typeOneInfo[3]
+    typeTwoMeans = typeTwoInfo[2]
+    typeTwoStDevs = typeTwoInfo[3]
+
+    # the x locations for the bar pairs
+    ind = np.arrange(len(orderedListOfIntras))
+    width = 0.35
+
+    # the subplot to plot on
+    fig, ax = plt.subplots()
+
+    # draw bars
+    bars1 = ax.bar(ind, typeOneMeans, width, color = 'r', yerr=typeOneStDevs)
+    bars2 = ax.bar(ind, typeTwoMeans, width, color = 'y', yerr= typeTwoStDevs)
+
+    # text and labels etc.
+    ax.set_ylabel('abundance ratio to majoirty intra')
+    ax.set_title('Comparison of intra ratios in similar types')
+    ax.set_xticks(ind + width)
+    ax.set_xticklabels(tuple(orderedListOfIntras))
+
+def popIntraInfo(symType, orderedListOfIntras, typeOneInfo):
+    # Compile info for Type1 intra means and std
+    for intra in orderedListOfIntras:
+        tempPropList = []
+        for SAMPLENAME in symType.samplesFoundInAsFinal:
+            SAMPLE = abundanceList[SAMPLENAME]
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == symType.clade:
+                    try:
+                        tempPropList.append(
+                            SAMPLE.intraAbundanceDict[intra] / (CLADECOLLECTION.cladalProportion * SAMPLE.totalSeqs))
+                    except:
+                        tempPropList.append(0)
+
+        # Put in next set of proportions for intra and calculate ratios
+        typeOneInfo[0].append(tempPropList)
+        # Divide the latest set of proportions by the first intra for each
+        # sample to get the ratio to append in typeOneInfo[1]
+        typeOneInfo[1].append(
+            [(typeOneInfo[0][-1][i] / typeOneInfo[0][0][i]) for i in range(len(symType.samplesFoundInAsFinal))])
+        # Transform anyratios above 1
+        for i in range(len(typeOneInfo[1][-1])):
+            RATIO = typeOneInfo[1][-1][i]
+            if RATIO > 1:
+                typeOneInfo[1][-1][i] = 1 + (1 - (1 / RATIO))
+        typeOneInfo[2].append(sum(typeOneInfo[1][-1]) / len(typeOneInfo[1][-1]))
+        typeOneInfo[3].append(statistics.stdev(typeOneInfo[1][-1]))
+    return typeOneInfo
+
+prodIntraPlotSimilarTypes()

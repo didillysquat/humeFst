@@ -145,7 +145,7 @@ class symboidiniumDBTypeEntry:
 
     '''This creates an instance of the typeEntry probably with only a single instance of the type found in a sample
     We will continue to update the information as we come across instances of the type within the samples'''
-    def __init__(self,  clade,  samplename,  footprint, majList = None, codom = None, sorteddefiningits2occurances=None, name=None,):
+    def __init__(self,  clade,  samplename,  footprint, majList = None, codom = None, sorteddefiningits2occurances=None, name=None, binomparentinitsamples=None):
         ''' If type is final then we take no listofdefiningintras as we only want this info from intial cases'''
         if name == None:
             print('Splitting binomial distribution')
@@ -167,6 +167,8 @@ class symboidiniumDBTypeEntry:
             self.samplesFoundInAsFinal = samplename
             self.createSymDBEntryName() # initializes self.name, self.sortedDefiningITS2Occurances, self.majList and self.coDom
             self.generateIntrasInfoFinal()
+            self.samplesFoundInAsInitial = binomparentinitsamples
+
         if self.coDom == False:
             self.majDict = {self.majList[0]: len(self.majList)}
         else:
