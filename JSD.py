@@ -218,7 +218,8 @@ def combineMultiCladeMED():
     write2DListToDestination('{0}/rawData/testingMED/completeMedFasta', completeMEDFasta)
 
 
-def prodIntraPlotSimilarTypes():
+def prodIntraPlotSimilarTypes(listOfTypeNames):
+
     cwd = os.path.dirname(__file__)
     global abundanceList
     abundanceList = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/abundanceListWithFinalTypes'.format(cwd))
@@ -226,52 +227,63 @@ def prodIntraPlotSimilarTypes():
     typeDB = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/typeDB'.format(cwd))
     oTLJD = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
 
+    listOfTypes = [typeDB[typeName] for typeName in listOfTypeNames]
     TYPEONE = typeDB['C3-ST-seq170']
     TYPETWO = typeDB['C3-ST-seq178-seq170']
 
     # Add the intras in the order form the largest type's footprint first
-    orderedListOfIntras = max([[a[0] for a in TYPEONE.sortedDefiningIts2Occurances], [a[0] for a in TYPETWO.sortedDefiningIts2Occurances]], key=len )
-    # Then add any remaining intras if not already in list
-    try:
-        orderedListOfIntras.extend([intra for intra in [a[0] for a in TYPEONE.sortedDefiningIts2Occurances] if intra not in b])
-    except:
-        pass
-    try:
-        orderedListOfIntras.extend([intra for intra in [a[0] for a in TYPETWO.sortedDefiningIts2Occurances] if intra not in b])
-    except:
-        pass
+    # Get list of intras in order for each type
+    orderedListOfListsOfIntras = []
+    footPrintList = []
+    for type in listOfTypes:
+        footPrintList.append([a[0] for a in type.sortedDefiningIts2Occurances])
+    orderedListOfListsOfIntras = sorted(footPrintList, key=len, reverse=True)
+    a = 5
 
-    typeOneInfo = [[] for i in range(4)]
-    typeTwoInfo = [[] for i in range(4)]
+    # Add all intras in order of occurence in longest type first
+    orderedListOfIntras = []
+    for intraList in orderedListOfListsOfIntras:
+        try:
+            orderedListOfIntras.extend([intra for intra in intraList if intra not in orderedListOfIntras])
+        except:
+            pass
 
-    typeOneInfo = popIntraInfo(TYPEONE, orderedListOfIntras, typeOneInfo)
-    typeTwoInfo = popIntraInfo(TYPETWO, orderedListOfIntras, typeTwoInfo)
+    typesInfo = []
+    for type in listOfTypes:
+        typesInfo.append(popIntraInfo(symType = listOfTypes, orderedListOfIntras))
 
-    # Here we have the info we need to make the pots
-    typeOneMeans = typeOneInfo[2]
-    typeOneStDevs = typeOneInfo[3]
-    typeTwoMeans = typeTwoInfo[2]
-    typeTwoStDevs = typeTwoInfo[3]
 
     # the x locations for the bar pairs
-    ind = np.arrange(len(orderedListOfIntras))
+    ind = np.arange(len(orderedListOfIntras))
     width = 0.35
 
     # the subplot to plot on
     fig, ax = plt.subplots()
 
     # draw bars
-    bars1 = ax.bar(ind, typeOneMeans, width, color = 'r', yerr=typeOneStDevs)
-    bars2 = ax.bar(ind, typeTwoMeans, width, color = 'y', yerr= typeTwoStDevs)
+    barsList = []
+    colourList = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    for i in range(len(listOfTypeNames)):
+        barsList.append(ax.bar(ind + (width * i), typesInfo[i][2], width, color=colourList[i % 6], yerr=typesInfo[i][3]))
+
 
     # text and labels etc.
     ax.set_ylabel('abundance ratio to majoirty intra')
     ax.set_title('Comparison of intra ratios in similar types')
     ax.set_xticks(ind + width)
     ax.set_xticklabels(tuple(orderedListOfIntras))
+    ax.set_ylim(bottom = 0, top=2)
 
-def popIntraInfo(symType, orderedListOfIntras, typeOneInfo):
+    # legend
+    ax.legend(tuple(bar[0] for bar in barsList), tuple(listOfTypeNames))
+
+    plt.show()
+
+    a = 6
+
+def popIntraInfo(symType, orderedListOfIntras):
     # Compile info for Type1 intra means and std
+    intrainfolist = [[]for i in range(len(4))]
     for intra in orderedListOfIntras:
         tempPropList = []
         for SAMPLENAME in symType.samplesFoundInAsFinal:
@@ -285,18 +297,21 @@ def popIntraInfo(symType, orderedListOfIntras, typeOneInfo):
                         tempPropList.append(0)
 
         # Put in next set of proportions for intra and calculate ratios
-        typeOneInfo[0].append(tempPropList)
+        intrainfolist[0].append(tempPropList)
         # Divide the latest set of proportions by the first intra for each
         # sample to get the ratio to append in typeOneInfo[1]
-        typeOneInfo[1].append(
-            [(typeOneInfo[0][-1][i] / typeOneInfo[0][0][i]) for i in range(len(symType.samplesFoundInAsFinal))])
+        intrainfolist[1].append(
+            [(intrainfolist[0][-1][i] / intrainfolist[0][0][i]) for i in range(len(symType.samplesFoundInAsFinal))])
         # Transform anyratios above 1
-        for i in range(len(typeOneInfo[1][-1])):
-            RATIO = typeOneInfo[1][-1][i]
+        for i in range(len(intrainfolist[1][-1])):
+            RATIO = intrainfolist[1][-1][i]
             if RATIO > 1:
-                typeOneInfo[1][-1][i] = 1 + (1 - (1 / RATIO))
-        typeOneInfo[2].append(sum(typeOneInfo[1][-1]) / len(typeOneInfo[1][-1]))
-        typeOneInfo[3].append(statistics.stdev(typeOneInfo[1][-1]))
-    return typeOneInfo
+                intrainfolist[1][-1][i] = 1 + (1 - (1 / RATIO))
+        intrainfolist[2].append(sum(intrainfolist[1][-1]) / len(intrainfolist[1][-1]))
+        try:
+            intrainfolist[3].append(statistics.stdev(intrainfolist[1][-1]))
+        except: # If e.g. ther is only one sample
+            intrainfolist[3].append(0)
+    return intrainfolist
 
-prodIntraPlotSimilarTypes()
+prodIntraPlotSimilarTypes(['C3-ST-seq170', 'C3-ST-seq178-seq170', 'C3-seq220-seq189-C107', 'C3-seq170', 'C3-ST-seq178-seq242', 'C3'])
