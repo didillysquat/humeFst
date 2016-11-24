@@ -528,9 +528,10 @@ def writeTypeBasedOutput2():
             # just as easily list them in final support just by using the finalSupportDict instead
 
             for INITIALTYPE in orderedListOfTypesInClade:
-                outPutDoc.append((['{0}'.format(INITIALTYPE.name), '{0}:{1}'.format(str(len(INITIALTYPE.samplesFoundInAsInitial)),
-                                                                                    str(len(INITIALTYPE.samplesFoundInAsFinal)))],
-                                  'typeInfo'))
+                if INITIALTYPE.samplesFoundInAsFinal:
+                    outPutDoc.append((['{0}'.format(INITIALTYPE.name), '{0}:{1}'.format(str(len(INITIALTYPE.samplesFoundInAsInitial)),
+                                                                                        str(len(INITIALTYPE.samplesFoundInAsFinal)))],
+                                      'typeInfo'))
 
             # INSERT FIGURE HERE
             # If the plots that we want to add exists
@@ -1802,10 +1803,10 @@ def inferFinalSymbiodiniumTypesIterative():
                             if TYPE.footPrint.issubset(
                                     listOfIntrasInSample):  # Check to see if the intras in the TYPE.footPrint are found in the listOfIntrasInSample list.
                                 addToDictList(keyval = '{0}/{1}'.format(SAMPLE.name, CLADE), value = TYPE.name, dictionary = dictOfTypesToCheckInIterations)
-                                if SAMPLE.name == 'YBb_020' :
+                                if SAMPLE.name == 'ADa_039' :
                                     a = 5
-                                if TYPE.name == 'Otu15163/C1':
-                                    a = 6
+                                    if TYPE.name == 'C3/seq178-ST-seq252':
+                                        a = 6
                                 if len(TYPE.footPrint) > 1:
                                     # This is the second/first level of control which makes sure that the ratios of the intras are sensible
                                     # This stops us finding types purely diven the presence of the intras but actually checks to the
@@ -1877,7 +1878,7 @@ def inferFinalSymbiodiniumTypesIterative():
                                 # for TYPENAME in [typename for typename in dictOfTypesToCheckInIterations['{0}/{1}'.format(SAMPLE.name, CLADE)] if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes]:
                                 typeNameList = [typename for typename in config.typeDB.keys() if typename not in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes and config.typeDB[typename].clade == CLADE]
                                 for TYPENAME in typeNameList:
-                                    if 'C3-ST-seq170' in FINALTYPECLADECOLLECTION.sortedListOfFinalTypes and TYPENAME == 'C3-ST-seq178-seq170':
+                                    if SAMPLE.name == 'ADa_039':
                                         a = 'foo'
                                     # if TYPENAME == 'seq162-seq168-C1-seq184':
                                     #     a=5
@@ -1913,17 +1914,15 @@ def inferFinalSymbiodiniumTypesIterative():
                                             a = 5
                                         for toDel in typeToDel:
                                             FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.remove(toDel.name)
-                                            try:
-                                                config.typeDB[toDel.name].samplesFoundInAsFinal.remove(SAMPLE.name)
-                                            except:
-                                                a = 6
+
+                                            config.typeDB[toDel.name].samplesFoundInAsFinal.remove(SAMPLE.name)
+
                                             # Need to delete this sample from the found in final list for this type entry in the DB
                                         if isSubSet == False:
                                             FINALTYPECLADECOLLECTION.sortedListOfFinalTypes.append(TYPE.name)
-                                            try:
-                                                config.typeDB[TYPE.name].samplesFoundInAsFinal.append(SAMPLE.name)
-                                            except:
-                                                a = 6
+
+                                            config.typeDB[TYPE.name].samplesFoundInAsFinal.append(SAMPLE.name)
+
                                             # Need to add this sample to the found in final list for this type entry in the DB
                                             typesAdded += 1
                                             if TYPE.name in typesAddedDict.keys():

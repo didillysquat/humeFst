@@ -44,9 +44,9 @@ def __init__():
     edBasePathPSBA = r'C:/Users/HUMEBC/Google Drive/EdData/screwaroundpsba'
     parser.add_argument('--rootLocation', default=cwd, help='Directory where the source code is found', metavar='PATH')
     # parser.add_argument('--inputLocation', default=cwd + '/raw data', help='Directory where the three input files are found', metavar='PATH')
-    parser.add_argument('--inputLocation', default=cwd + '/MEDdata/raw data',help='Directory where the three input files are found', metavar='PATH')
+    parser.add_argument('--inputLocation', default=cwd + '/originalData/rawData',help='Directory where the three input files are found', metavar='PATH')
     # parser.add_argument('--saveLocation', default=cwd, help='Output directory for saving matrices and output tables', metavar='PATH')
-    parser.add_argument('--saveLocation', default=cwd + '/MEDdata', help='Output directory for saving matrices and output tables',metavar='PATH')
+    parser.add_argument('--saveLocation', default=cwd + '/originalData', help='Output directory for saving matrices and output tables',metavar='PATH')
     # parser.add_argument('--mothurLocation', default=cwd + '/Mothur/mothur.exe', help='Full path including mothur.exe', metavar='PATH')
     parser.add_argument('--rscriptLocation', default=cwd + '/R/R-3.3.0/bin/x64/Rscript.exe', help='Full path including Rscript.exe', metavar='PATH')
     
@@ -408,6 +408,8 @@ def createAbundnanceListMainMPRaw():
     return list(resultList)
 
 def writeByteObjectToDefinedDirectory(directory,object):
+    os.makedirs(os.path.dirname(directory), exist_ok=True)
+
     f = open(directory, 'wb+')
     pickle.dump(object, f)
 
