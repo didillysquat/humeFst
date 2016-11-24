@@ -7,6 +7,8 @@ path = r'C:/Users/HUMEBC/Google Drive/EdData/screwaroundpsba/'
 base = r'C:/Users/HUMEBC/Google Drive/EdData/'
 import pickle
 from subprocess import call
+import itertools
+
 import copy
 
 def readDefinedFileToList(filename):
@@ -146,6 +148,12 @@ def createMEDInputFas(cladedictpicklefile, rawabundancefiledir, fastafiledir, ou
         writeListToDestination('{0}/fastaForMed{1}.fas'.format(outputdir, cladeList[i]), newfastaFile[i])
     return
 
+def addToDictList(keyval, value, dictionary):
+    if keyval in dictionary.keys():
+        dictionary[keyval].append(value)
+    else:
+        dictionary[keyval] = [value]
+    return
 
 def stdInToMEDIn(cladeList):
     try:
@@ -365,6 +373,7 @@ def stdInputToMEDInput():
     call(['sh', './inputsForMED/MEDscript'])
 
     a = 7
+
 def prodIntraPlotSimilarTypes(listOfTypeNames):
 
     cwd = os.path.dirname(__file__)
@@ -462,13 +471,19 @@ def popIntraInfo(symType, orderedListOfIntras):
                             SAMPLE.intraAbundanceDict[intra] / (CLADECOLLECTION.cladalProportion * SAMPLE.totalSeqs))
                     except:
                         tempPropList.append(0)
-
+                    oursToLaJDict['seq164']
         # Put in next set of proportions for intra and calculate ratios
         intrainfolist[0].append(tempPropList)
         # Divide the latest set of proportions by the first intra for each
         # sample to get the ratio to append in typeOneInfo[1]
-        intrainfolist[1].append(
-            [(intrainfolist[0][-1][i] / intrainfolist[0][0][i]) for i in range(len(symType.samplesFoundInAsFinal))])
+        tempList = []
+        for i in range(len(symType.samplesFoundInAsFinal)):
+            try:
+                tempList.append((intrainfolist[0][-1][i] / intrainfolist[0][0][i]))
+
+            except:
+                tempList.append(0.0001)
+        intrainfolist[1].append(tempList)
         # Transform anyratios above 1
         for i in range(len(intrainfolist[1][-1])):
             RATIO = intrainfolist[1][-1][i]
@@ -487,8 +502,9 @@ def popIntraInfo(symType, orderedListOfIntras):
 # prodIntraPlotSimilarTypes(['Cseq1-seq168-C1-seq176', 'Cseq1-seq168-C1-seq184-seq176', 'Cseq1-seq173-seq168-C1-seq198', 'C1/Cseq1-C39', 'Cseq1/C1-seq176'])
 # prodIntraPlotSimilarTypes(['C15', 'C15-seq236', 'C15-seq204', 'C15n/C15', 'C15/seq196'])
 # prodIntraPlotSimilarTypes(['D1-D4-seq417', 'D1-seq433-D4', 'D1-seq409-D4-D6-seq411-seq415', 'D1/D4', 'D4/D1-D6-D2-seq411-seq414', 'D1/D4-D6-seq411', 'D1/D4-seq409-D6-D2'])
-
-#TODO so the problem appears to be that MED can't access the fasta file for somereason
+# prodIntraPlotSimilarTypes(['Cseq1', 'Cseq1-seq168-C1-seq176', 'Cseq1-seq168-C1-seq184-seq176', 'Cseq1-seq168-C1-seq184'])
+# prodIntraPlotSimilarTypes(['Cseq3-C1-seq210', 'Cseq3'])
+#TODO so the problem appears to be that MED can't access the fasta file for some reason
 
 # # stdInputToMEDInput()
 # a = 'joe'
@@ -510,9 +526,41 @@ typeDB = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/type
 global oursToLaJDict
 oursToLaJDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
 global seqNameToCladeDict
-seqNameToCladeDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
+seqNameToCladeDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/seqNameToCladeDict'.format(cwd))[0]
 
-def assessTypeCollapse():
+def assessTypeCollapse(listOfTypeNames):
+
+    listOfTypes = [typeDB[typname] for typname in listOfTypeNames]
+
+
+    # Add the intras in the order form the largest type's footprint first
+    # Get list of intras in order for each type
+    orderedListOfListsOfIntras = []
+    footPrintList = []
+    for type in listOfTypes:
+        footPrintList.append([a[0] for a in type.sortedDefiningIts2Occurances])
+    orderedListOfListsOfIntras = sorted(footPrintList, key=len, reverse=True)
+
+
+    # Add all intras in order of occurence in longest type first
+    orderedListOfIntras = []
+    for intraList in orderedListOfListsOfIntras:
+        try:
+            orderedListOfIntras.extend([intra for intra in intraList if intra not in orderedListOfIntras])
+        except:
+            pass
+
+    typesInfo = []
+    for type in listOfTypes:
+        typesInfo.append(popIntraInfo(symType = type, orderedListOfIntras=orderedListOfIntras))
+
+    #TODO logic here for comparing between the two typeInfos to see if collapseable
+
+    for i in range(len(typesInfo[0][0])): # For each intra
+        if min(typesInfo[0][2][i], typesInfo[1][2][i]) / max(typesInfo[0][2][i], typesInfo[1][2][i]) < 0.5:
+            return False
+    return True
+def typeGroupings():
     '''
 
     Place each of the types into their respective groups
@@ -527,9 +575,10 @@ def assessTypeCollapse():
 
     # groupnames are the Maj types found in types
     # but if coDom types exist the groups contain all intras in the codoms that share intras
+    listOfTypesInFinal = [typeDB[typename] for typename in typeDB.keys() if typeDB[typename].samplesFoundInAsFinal]
+
     groupNames = []
-    for TYPENAME in typeDB.keys():
-        TYPE = typeDB[TYPENAME]
+    for TYPE in listOfTypesInFinal:
         if TYPE.coDom:
             tempGroupList = set(TYPE.majDict.values())
         else:
@@ -538,57 +587,73 @@ def assessTypeCollapse():
         groupNames = assignTempGroup(groupNames, tempGroupList)
 
     # Initialize groups
-    global listOfGroups
+
     listOfGroups = []
     for group in groupNames:
         listOfGroups.append(symTypeGrouping(clade=seqNameToCladeDict[list(group)[0]], definingIntras=group))
 
     # Assign all types to groups
-    for TYPENAME in typeDB.keys():
-        TYPE = typeDB[TYPENAME]
+    for TYPE in listOfTypesInFinal:
         if TYPE.coDom:
-            tempGroupList = set(TYPE.majDict.values)
+            tempGroupList = set(TYPE.majDict.values())
         else:
             tempGroupList = set(TYPE.majDict.keys())
+        typeAssigned = False
         for i in range(len(listOfGroups)):
-            typeAssigned = False
             if tempGroupList.issubset(listOfGroups[i].definingIntras):
-                listOfGroups[i].types.append(TYPENAME)
+                listOfGroups[i].types.append(TYPE.name)
                 typeAssigned = True
+                break
         if typeAssigned == False:
-            print('Warning type: {0} was not assigned to a group'.format(TYPENAME))
+            print('Warning type: {0} was not assigned to a group'.format(TYPE.name))
 
-    a = 'partridge'
+    # Name the groups
+    for group in listOfGroups:
+        group.name = CLJ(group.grpName())
+
+    return listOfGroups
 
 class symTypeGrouping:
 
-    def __init__(self, clade, definingIntras, types = [], supportedTypes = [], unsupportedTypes = []):
-        self.types = types
-        self.supportedTypes = supportedTypes
-        self.unsupportedTypes = unsupportedTypes
+    def __init__(self, clade, definingIntras, types = None, supportedTypes = None, unsupportedTypes = None):
+        if types != None:
+            self.types = types
+        else:
+            self.types = []
+        if supportedTypes != None:
+            self.supportedTypes = supportedTypes
+        else:
+            self.supportedTypes = []
+        if unsupportedTypes != None:
+            self.unsupportedTypes = unsupportedTypes
+        else:
+            self.unsupportedTypes = []
         self.definingIntras = definingIntras
         self.clade = clade
-        self.name = self.grpName()
+        self.name = 'run self.grpName to generate name'
 
     def grpName(self):
-        avPropIntra = {intra:[] for intra in self.definingIntras}
+        avPropIntra = {}
+        tempAvPropIntra = {intra: [] for intra in self.definingIntras}
         for TYPENAME in self.types:
             TYPE = typeDB[TYPENAME]
-            tempAvPropIntra = {intra:[] for intra in self.definingIntras}
             for samplename in TYPE.samplesFoundInAsFinal:
                 SAMPLE = abundanceList[samplename]
                 for intra in self.definingIntras:
                     try:
-                        tempAvPropIntra[intra] = SAMPLE.intraAbundanceDict[intra]/(SAMPLE.totalSeqs*SAMPLE.cladalProportions[self.clade])
+                        tempAvPropIntra[intra].append(SAMPLE.intraAbundanceDict[intra]/(SAMPLE.totalSeqs*SAMPLE.cladalProportions[self.clade]))
                     except:
-                        continue
-            for intra in self.definingIntras:
-                avPropIntra[intra].append(tempAvPropIntra[intra])
+                        tempAvPropIntra[intra].append(0)
+        for intra in self.definingIntras:
+            try:
+                avPropIntra[intra] = sum(tempAvPropIntra[intra])/len(tempAvPropIntra[intra])
+            except: # If one of the intras wasn't found in the type
+                avPropIntra[intra] = 0
         grpName = sorted(avPropIntra, key=avPropIntra.get, reverse=True)[0]
         return grpName
 
-
-
+    def __str__(self):
+        return self.name
 
 def assignTempGroup(groupNames, tempGroupList):
     # identify groups which contain intras found in the tempgrouplist
@@ -610,4 +675,21 @@ def assignTempGroup(groupNames, tempGroupList):
     newgroupNames.append(newGroup)
     return newgroupNames
 
-assessTypeCollapse()
+def main():
+    global listOfTypeGroups
+    listOfTypeGroups = typeGroupings()
+
+
+    for group in listOfTypeGroups:
+        if group.name == 'C39':
+            a = 4
+        dictForCollapse = {}
+        for a, b in itertools.combinations(group.types, 2):
+            if assessTypeCollapse([a,b]):
+                addToDictList(keyval=a, value=b, dictionary=dictForCollapse)
+                addToDictList(keyval=b, value=a, dictionary=dictForCollapse)
+
+        # Here we have the types within the group that need collapsing
+        # Let's try to get to here
+        a = 6
+main()

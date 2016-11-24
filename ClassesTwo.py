@@ -16,7 +16,7 @@ class sample(object):
     def initCladProps(self):
         cladeList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
         counterDict = {letter: 0 for letter in cladeList}
-        for occur in self.compComplement:
+        for occur in self.compComplement.listOfits2SequenceOccurances:
             counterDict[occur.clade] += occur.abundance
 
         propDict = {letter: 0 for letter in cladeList}
