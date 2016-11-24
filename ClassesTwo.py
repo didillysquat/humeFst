@@ -10,7 +10,20 @@ class sample(object):
         self.totalSeqs = totalSeqs
         self.finalTypeCladeCollectionList = []
         self.intraAbundanceDict = self.createIntraAbundanceDict()
+        self.cladalProportions = self.initCladProps()
 
+
+    def initCladProps(self):
+        cladeList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+        counterDict = {letter: 0 for letter in cladeList}
+        for occur in self.compComplement:
+            counterDict[occur.clade] += occur.abundance
+
+        propDict = {letter: 0 for letter in cladeList}
+        for clade in cladeList:
+            propDict[clade] = counterDict[clade]/self.totalSeqs
+
+        return propDict
 
     def createIntraAbundanceDict(self):
         abundanceDict = {}

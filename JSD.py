@@ -376,8 +376,7 @@ def prodIntraPlotSimilarTypes(listOfTypeNames):
     oursToLaJDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
 
     listOfTypes = [typeDB[typeName] for typeName in listOfTypeNames]
-    TYPEONE = typeDB['C3-ST-seq170']
-    TYPETWO = typeDB['C3-ST-seq178-seq170']
+
 
     # Add the intras in the order form the largest type's footprint first
     # Get list of intras in order for each type
@@ -441,7 +440,16 @@ def CLJ(VAR):
 
 def popIntraInfo(symType, orderedListOfIntras):
     # Compile info for Type1 intra means and std
-
+    '''
+    The intrainfolist contains four lists
+    intrainfolist[0] contains a list for each intra in orderedListofIntras. The values are the proportions of the intras
+    in the clade collection of each of the samples it is found in
+    intrainfolist[1] contains a list for each intra. The values are the ratios of the intra in question to the first intra
+    intrainfolist[2] contains a single value for each intra and is the mean of the [1] list
+    intrasinfolist[3] contains the stdev of the [1] list
+    These can then be used to plot the ratios for each intra for the given types or they can be used
+    to evalute whether to collapse types.
+    '''
     intrainfolist = [[]for i in range(4)]
     for intra in orderedListOfIntras:
         tempPropList = []
@@ -482,14 +490,124 @@ def popIntraInfo(symType, orderedListOfIntras):
 
 #TODO so the problem appears to be that MED can't access the fasta file for somereason
 
-# stdInputToMEDInput()
-a = 'joe'
-cd = os.getcwd()
-# os.chmod('{0}/inputsForMED/MEDFastaA.fas'.format(cd), 0o755)
-# os.system('chmod 0755 ./inputsForMED/MEDscript')
-os.system('less test')
-os.system('decompose ~/fstProjectWorking/inputsForMED/MEDFASTA.fas-PADDED-WITH-GAPS')
-# call(['sh', './inputsForMED/script.txt'])
-# a = 6
-# call(['sh', './inputsForMED/MEDscript'])
-# a = 5
+# # stdInputToMEDInput()
+# a = 'joe'
+# cd = os.getcwd()
+# # os.chmod('{0}/inputsForMED/MEDFastaA.fas'.format(cd), 0o755)
+# # os.system('chmod 0755 ./inputsForMED/MEDscript')
+# os.system('less test')
+# os.system('decompose ~/fstProjectWorking/inputsForMED/MEDFASTA.fas-PADDED-WITH-GAPS')
+# # call(['sh', './inputsForMED/script.txt'])
+# # a = 6
+# # call(['sh', './inputsForMED/MEDscript'])
+# # a = 5
+
+cwd = os.path.dirname(__file__)
+global abundanceList
+abundanceList = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/abundanceListWithFinalTypes'.format(cwd))
+global typeDB
+typeDB = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/typeDB'.format(cwd))
+global oursToLaJDict
+oursToLaJDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
+global seqNameToCladeDict
+seqNameToCladeDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
+
+def assessTypeCollapse():
+    '''
+
+    Place each of the types into their respective groups
+    Within groups assess each type pair for collapse
+    Make note of which types collapse
+    Where either of the types in a collapsing pair also collapse with alternative types but the other inital
+    collapsing pair doesn't collapse with this then collapse the type with the maximum collapsing possibilities
+    to the type with the closest Fst.
+    Once a collapse has occured... lets get to here first and see what it looks like
+    :return:
+    '''
+
+    # groupnames are the Maj types found in types
+    # but if coDom types exist the groups contain all intras in the codoms that share intras
+    groupNames = []
+    for TYPENAME in typeDB.keys():
+        TYPE = typeDB[TYPENAME]
+        if TYPE.coDom:
+            tempGroupList = set(TYPE.majDict.values())
+        else:
+            tempGroupList = set(TYPE.majDict.keys())
+        tempGroupList = set([intra for intra in tempGroupList])
+        groupNames = assignTempGroup(groupNames, tempGroupList)
+
+    # Initialize groups
+    global listOfGroups
+    listOfGroups = []
+    for group in groupNames:
+        listOfGroups.append(symTypeGrouping(clade=seqNameToCladeDict[list(group)[0]], definingIntras=group))
+
+    # Assign all types to groups
+    for TYPENAME in typeDB.keys():
+        TYPE = typeDB[TYPENAME]
+        if TYPE.coDom:
+            tempGroupList = set(TYPE.majDict.values)
+        else:
+            tempGroupList = set(TYPE.majDict.keys())
+        for i in range(len(listOfGroups)):
+            typeAssigned = False
+            if tempGroupList.issubset(listOfGroups[i].definingIntras):
+                listOfGroups[i].types.append(TYPENAME)
+                typeAssigned = True
+        if typeAssigned == False:
+            print('Warning type: {0} was not assigned to a group'.format(TYPENAME))
+
+    a = 'partridge'
+
+class symTypeGrouping:
+
+    def __init__(self, clade, definingIntras, types = [], supportedTypes = [], unsupportedTypes = []):
+        self.types = types
+        self.supportedTypes = supportedTypes
+        self.unsupportedTypes = unsupportedTypes
+        self.definingIntras = definingIntras
+        self.clade = clade
+        self.name = self.grpName()
+
+    def grpName(self):
+        avPropIntra = {intra:[] for intra in self.definingIntras}
+        for TYPENAME in self.types:
+            TYPE = typeDB[TYPENAME]
+            tempAvPropIntra = {intra:[] for intra in self.definingIntras}
+            for samplename in TYPE.samplesFoundInAsFinal:
+                SAMPLE = abundanceList[samplename]
+                for intra in self.definingIntras:
+                    try:
+                        tempAvPropIntra[intra] = SAMPLE.intraAbundanceDict[intra]/(SAMPLE.totalSeqs*SAMPLE.cladalProportions[self.clade])
+                    except:
+                        continue
+            for intra in self.definingIntras:
+                avPropIntra[intra].append(tempAvPropIntra[intra])
+        grpName = sorted(avPropIntra, key=avPropIntra.get, reverse=True)[0]
+        return grpName
+
+
+
+
+def assignTempGroup(groupNames, tempGroupList):
+    # identify groups which contain intras found in the tempgrouplist
+    indexMatch = []
+    for element in tempGroupList:
+        for j in range(len(groupNames)):
+            if element in groupNames[j]:
+                indexMatch.append(j)
+
+    # Create new group combining all intras in question
+    newGroup = tempGroupList
+    for index in indexMatch:
+        for intra in groupNames[index]:
+            if intra not in newGroup:
+                newGroup.add(intra)
+    # Create a new list that doesn't have the groups that we want to remove
+    newgroupNames = [groupNames[index] for index in range(len(groupNames)) if index not in indexMatch]
+    #Append new group
+    newgroupNames.append(newGroup)
+    return newgroupNames
+
+assessTypeCollapse()

@@ -2802,6 +2802,77 @@ def clearConfigAbundanceList():
         del SAMPLE.cladeCollectionList[:]
         del SAMPLE.finalTypeCladeCollectionList[:]
 
+def assessTypeCollapse():
+    '''
+    Update all types' sortedITS2Occurances
+    Generate groups for each of the majs
+    Place each of the types into their respective groups
+    Within groups assess each type pair for collapse
+    Make note of which types collapse
+    Where either of the types in a collapsing pair also collapse with alternative types but the other inital
+    collapsing pair doesn't collapse with this then collapse the type with the maximum collapsing possibilities
+    to the type with the closest Fst.
+    Once a collapse has occured... lets get to here first and see what it looks like
+    :return:
+    '''
+
+    # groupnames are the Maj types found in types
+    # but if coDom types exist the groups contain all intras in the codoms that share intras
+    groupNames = []
+    for TYPENAME in config.typeDB.keys():
+        TYPE = config.typeDB[TYPENAME]
+        tempGroupList = [TYPE.majDict.keys()]
+        assignTempGroup(groupNames, tempGroupList)
+
+    a = 'partridge'
+
+
+
+def assignTempGroup(groupNames, tempGroupList):
+    for i in range(len(tempGroupList)):
+        for j in range(len(groupNames)):
+            if tempGroupList[i] in groupNames[j]:
+                groupNames[j].update(tempGroupList)
+                return
+    groupNames.append(set(tempGroupList))
+    return
+
+
+
+def evaluateTypeSimilarity(listOfTypeNames):
+
+    cwd = os.path.dirname(__file__)
+    global abundanceList
+    abundanceList = readByteObjectFromDefinedDirectory(
+        '{0}/MEDdata/serialized objects/abundanceListWithFinalTypes'.format(cwd))
+    global typeDB
+    typeDB = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized objects/typeDB'.format(cwd))
+    global oursToLaJDict
+    oursToLaJDict = readByteObjectFromDefinedDirectory(
+        '{0}/MEDdata/serialized objects/oursToLaJDict'.format(cwd))
+
+    listOfTypes = [typeDB[typeName] for typeName in listOfTypeNames]
+
+    # Add the intras in the order form the largest type's footprint first
+    # Get list of intras in order for each type
+    orderedListOfListsOfIntras = []
+    footPrintList = []
+    for type in listOfTypes:
+        footPrintList.append([a[0] for a in type.sortedDefiningIts2Occurances])
+    orderedListOfListsOfIntras = sorted(footPrintList, key=len, reverse=True)
+    a = 5
+
+    # Add all intras in order of occurence in longest type first
+    orderedListOfIntras = []
+    for intraList in orderedListOfListsOfIntras:
+        try:
+            orderedListOfIntras.extend([intra for intra in intraList if intra not in orderedListOfIntras])
+        except:
+            pass
+
+    typesInfo = []
+    for type in listOfTypes:
+        typesInfo.append(popIntraInfo(symType=type, orderedListOfIntras=orderedListOfIntras))
 
 ## MAIN FUNCTION ##
 def CreateHumeFstMatrices():
@@ -2936,7 +3007,7 @@ def CreateHumeFstMatrices():
     print('Final type inference complete')
 
 
-
+    assessTypeCollapse()
 
     #Create masterSeqDistancesDict
     #This is a dictionary that has the genetic distances between every combination of sequences from the same clade.

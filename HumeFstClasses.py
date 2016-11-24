@@ -178,7 +178,20 @@ class symboidiniumDBTypeEntry:
     def __str__(self):
         return self.name
 
-    def createSymDBEntryName(self, ): # Outputname
+    def updateSortedDefiningITS2Occurances(self):
+        # Create an abundance dictionary for the sequences in the footprint across all samples that contain that type
+        proportionDict = {seq: 0 for seq in self.footPrint}
+        for SAMPLEKEY in self.samplesFoundInAsFinal:
+            SAMPLE = config.abundanceList[SAMPLEKEY]
+            for CLADECOLLECTION in SAMPLE.cladeCollectionList:
+                if CLADECOLLECTION.clade == self.clade:
+                    for intra in self.footPrint:
+                        proportionDict[intra] = proportionDict[intra] + (
+                        SAMPLE.intraAbundanceDict[intra] / (SAMPLE.totalSeqs * CLADECOLLECTION.cladalProportion))
+
+        self.sortedDefiningIts2Occurances = [(a[0], a[1]) for a in sorted(proportionDict.items(), key=lambda x: x[1], reverse=True)]
+
+    def createSymDBEntryName(self): # Outputname
         ''' This needs to return a name, sortedDefiningIts2Occurances, majList and coDom'''
         # Keep track of which intra is the maj in each sample (must be one of the intras in the footprint)
         # This may we can reassess to see if this new type is still a
