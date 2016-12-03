@@ -471,7 +471,7 @@ def popIntraInfo(symType, orderedListOfIntras):
                             SAMPLE.intraAbundanceDict[intra] / (CLADECOLLECTION.cladalProportion * SAMPLE.totalSeqs))
                     except:
                         tempPropList.append(0)
-                    oursToLaJDict['seq164']
+
         # Put in next set of proportions for intra and calculate ratios
         intrainfolist[0].append(tempPropList)
         # Divide the latest set of proportions by the first intra for each
@@ -502,21 +502,11 @@ def popIntraInfo(symType, orderedListOfIntras):
 # prodIntraPlotSimilarTypes(['Cseq1-seq168-C1-seq176', 'Cseq1-seq168-C1-seq184-seq176', 'Cseq1-seq173-seq168-C1-seq198', 'C1/Cseq1-C39', 'Cseq1/C1-seq176'])
 # prodIntraPlotSimilarTypes(['C15', 'C15-seq236', 'C15-seq204', 'C15n/C15', 'C15/seq196'])
 # prodIntraPlotSimilarTypes(['D1-D4-seq417', 'D1-seq433-D4', 'D1-seq409-D4-D6-seq411-seq415', 'D1/D4', 'D4/D1-D6-D2-seq411-seq414', 'D1/D4-D6-seq411', 'D1/D4-seq409-D6-D2'])
-# prodIntraPlotSimilarTypes(['Cseq1', 'Cseq1-seq168-C1-seq176', 'Cseq1-seq168-C1-seq184-seq176', 'Cseq1-seq168-C1-seq184'])
+prodIntraPlotSimilarTypes(['C3-ST-seq170', 'C3-ST-seq178-seq170', 'C3-seq170', 'C3/seq178-ST', 'C3/seq178-seq170'])
 # prodIntraPlotSimilarTypes(['Cseq3-C1-seq210', 'Cseq3'])
-#TODO so the problem appears to be that MED can't access the fasta file for some reason
+#TODO solution to this problem is to simply run a script that takes a basic format, creates the MED input, pipes, into
+# MED and then have the MED output pipe into the main programme. i.e. run the whole thing on the command line
 
-# # stdInputToMEDInput()
-# a = 'joe'
-# cd = os.getcwd()
-# # os.chmod('{0}/inputsForMED/MEDFastaA.fas'.format(cd), 0o755)
-# # os.system('chmod 0755 ./inputsForMED/MEDscript')
-# os.system('less test')
-# os.system('decompose ~/fstProjectWorking/inputsForMED/MEDFASTA.fas-PADDED-WITH-GAPS')
-# # call(['sh', './inputsForMED/script.txt'])
-# # a = 6
-# # call(['sh', './inputsForMED/MEDscript'])
-# # a = 5
 
 cwd = os.path.dirname(__file__)
 global abundanceList
@@ -530,11 +520,14 @@ seqNameToCladeDict = readByteObjectFromDefinedDirectory('{0}/MEDdata/serialized 
 
 def assessTypeCollapse(listOfTypeNames):
 
+
+    # listOfTypes to be considered for collapse
     listOfTypes = [typeDB[typname] for typname in listOfTypeNames]
 
 
-    # Add the intras in the order form the largest type's footprint first
-    # Get list of intras in order for each type
+
+    # Get a list of all intras found in any of the types and have it roughy in order of abundance (of intra)
+    # Add intras found in the largest footPrints first
     orderedListOfListsOfIntras = []
     footPrintList = []
     for type in listOfTypes:
@@ -550,16 +543,20 @@ def assessTypeCollapse(listOfTypeNames):
         except:
             pass
 
+    # For each of the types under consideration produce the types info
+    # that contain information on the average abundance of each of the intras in the orderedListOfIntras
     typesInfo = []
     for type in listOfTypes:
         typesInfo.append(popIntraInfo(symType = type, orderedListOfIntras=orderedListOfIntras))
 
     #TODO logic here for comparing between the two typeInfos to see if collapseable
-
+    # For each intra check to see if the average abundace of that intra in the type is within one half of the other
+    # If all of the ratios are within the 0.5 then we will return true and collapse, else false and no collapse
     for i in range(len(typesInfo[0][0])): # For each intra
         if min(typesInfo[0][2][i], typesInfo[1][2][i]) / max(typesInfo[0][2][i], typesInfo[1][2][i]) < 0.5:
             return False
     return True
+
 def typeGroupings():
     '''
 
@@ -577,6 +574,10 @@ def typeGroupings():
     # but if coDom types exist the groups contain all intras in the codoms that share intras
     listOfTypesInFinal = [typeDB[typename] for typename in typeDB.keys() if typeDB[typename].samplesFoundInAsFinal]
 
+    # create a temp set that is the majs found in a given type
+    # compare this collection of majs to the groups that have already been created
+    # and either create a new group name that is just the majs found in the type in question
+    # or if the majs in this type are already in a group, incorporate the tempGroup
     groupNames = []
     for TYPE in listOfTypesInFinal:
         if TYPE.coDom:
@@ -587,12 +588,12 @@ def typeGroupings():
         groupNames = assignTempGroup(groupNames, tempGroupList)
 
     # Initialize groups
-
+    # Convert each of the sets in the groupNames list of sets into actual symTypeGroping instances
     listOfGroups = []
     for group in groupNames:
         listOfGroups.append(symTypeGrouping(clade=seqNameToCladeDict[list(group)[0]], definingIntras=group))
 
-    # Assign all types to groups
+    # Assign all types to the groups we just defined
     for TYPE in listOfTypesInFinal:
         if TYPE.coDom:
             tempGroupList = set(TYPE.majDict.values())
@@ -607,7 +608,8 @@ def typeGroupings():
         if typeAssigned == False:
             print('Warning type: {0} was not assigned to a group'.format(TYPE.name))
 
-    # Name the groups
+    # Name the groups according the most abundant intra across all types and samples that are found within the group
+    # Finally convert this name to a laJ if pos
     for group in listOfGroups:
         group.name = CLJ(group.grpName())
 
@@ -657,6 +659,8 @@ class symTypeGrouping:
 
 def assignTempGroup(groupNames, tempGroupList):
     # identify groups which contain intras found in the tempgrouplist
+    # they are identified as their index within the groupNames list
+    # we will later delete the group names in the groupNames list according to these indices
     indexMatch = []
     for element in tempGroupList:
         for j in range(len(groupNames)):
@@ -664,14 +668,20 @@ def assignTempGroup(groupNames, tempGroupList):
                 indexMatch.append(j)
 
     # Create new group combining all intras in question
+    # We now create a new group which contains all of the intras found in all of the related groups so far
+    # (we have the index of all of these groups in the indexMatch list)
     newGroup = tempGroupList
     for index in indexMatch:
         for intra in groupNames[index]:
             if intra not in newGroup:
                 newGroup.add(intra)
-    # Create a new list that doesn't have the groups that we want to remove
+
+    # Remove the groups in the list that contained any of the intras in the tempGroupList
+    # so that we can then add the new group that we created above
     newgroupNames = [groupNames[index] for index in range(len(groupNames)) if index not in indexMatch]
-    #Append new group
+
+    #Append the new group that is made up of all of the intras found in all of the groups that contained
+    # any of the intras found in our tempGroupList
     newgroupNames.append(newGroup)
     return newgroupNames
 
@@ -691,5 +701,10 @@ def main():
 
         # Here we have the types within the group that need collapsing
         # Let's try to get to here
-        a = 6
+        # In case of linear collapses i.e a goes into b which goes into c where a<b<c
+        # TODO - we got here! so now we collapse the smallest into the next smallest first, reassess
+        # and then collapse again if needs be
+        # In case where recipricol pair then collapse small into big
+        # TODO - we will have to solve other situations as they come up
+    a = 6
 main()

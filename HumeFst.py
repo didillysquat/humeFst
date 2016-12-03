@@ -2816,7 +2816,7 @@ def assessTypeCollapse():
     :return:
     '''
 
-    # groupnames are the Maj types found in types
+    # groupnames are the Maj seqs found in types
     # but if coDom types exist the groups contain all intras in the codoms that share intras
     groupNames = []
     for TYPENAME in config.typeDB.keys():
