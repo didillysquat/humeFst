@@ -1,0 +1,9 @@
+{% extends "dbApp/header.html" %}
+
+{% block content %}
+    <!-- for some reason the object name has to be in all lowercase? Go figure. I don't know why -->
+    <h3>{{its2seq.name}}</h3>
+    <h6>at occurance of {{its2seq.occurance}}</h6>
+    {{its2seq.sequence}}
+
+{% endblock %}

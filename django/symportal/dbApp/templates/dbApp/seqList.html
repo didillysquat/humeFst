@@ -1,0 +1,11 @@
+{% extends "dbApp/header.html" %}
+
+{% block content %}
+
+    {% for post in object_list %}
+        <h5>
+            <a href="/dbApp/{{post.id}}">{{post.name}}</a>
+        </h5>
+    {% endfor %}
+
+{% endblock %}

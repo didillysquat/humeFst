@@ -1,0 +1,157 @@
+{% extends "dbApp/header.html" %}
+{% block content %}
+    <!-- This will be a form that will allow us the user to submit a query to the database
+    that will then return to the seqQueryResult page with the restuls of the query -->
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <span style= "font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New; font-size: 16px" >
+                            symPortal<span style="font-size:12px">db</span>
+                        </span>
+                        ITS2 sequence query: Input
+                </div>
+                <div class="panel-body">
+                    <form action="{% url 'dbApp:seqQuery' %}" method="post" class="form-horizontal">
+                        {% csrf_token %}
+                        <!-- Fields of seqQuery form -->
+                        <!-- Sequence name -->
+                        <div class="form-group">
+                            <label for="seq_name" class="col-md-4 control-label" style="display:block;">Sequence name</label>
+                            <div class="col-md-4">
+                                <input type="text" name="seq_name" class="form-control" id="seq_name" placeholder="ALL" aria-describedby="seq_name_helpblock">
+                            </div>
+                            <div class="col-md-4">
+                                <span id="seq_name_helpblock" class="help-block">e.g. 'C3', 'C3, D1', 'A1-5'</span>
+                            </div>
+                        </div>
+                        <!-- Sequence clade -->
+                        <div class="form-group">
+                            <label for="seq_clade" class="col-md-4 control-label">Sequence clade</label>
+                            <div class="col-md-4">
+                                <select class="form-control" name="seq_clade" id="seq_clade" aria-describedby="seq_clade_helpblock">
+                                    <option selected="selected">ALL</option>
+                                    <option>A</option>
+                                    <option>B</option>
+                                    <option>C</option>
+                                    <option>D</option>
+                                    <option>E</option>
+                                    <option>F</option>
+                                    <option>G</option>
+                                    <option>H</option>
+                                    <option>I</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Sequence occurrence -->
+                        <div class="form-group">
+                            <label for="seq_occurrence" class="col-md-4 control-label">Sequence occurance</label>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="seq_occurrence"  id="seq_occurrence" aria-describedby="seq_occurrence_helpblock" placeholder="ALL">
+                            </div>
+                            <div class="col-md-4">
+                                <span id="seq_occurrence_helpblock" class="help-block">e.g. '50-750', '>50', '<75' </span>
+                            </div>
+                        </div>
+                        <!-- Sequence length -->
+                        <div class="form-group">
+                            <label for="seq_length" class="col-md-4 control-label">Sequence length</label>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="seq_length"  id="seq_length" min="0" aria-describedby="seq_length_helpblock" placeholder="ALL">
+                                    <div class="input-group-addon">bp</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <span id="seq_length_helpblock" class="help-block">e.g. '50-750', '>50', '<75' </span>
+                            </div>
+                        </div>
+                        <!-- Sort results by -->
+                        <div class="form-group">
+                            <label for="seq_clade" class="col-md-4 control-label">Sort results by</label>
+                            <div class="col-md-4">
+                                <select class="form-control" name="seq_sortby" id="seq_sortby" aria-describedby="seq_clade_helpblock">
+                                    <option selected="selected">Sequence occurrence</option>
+                                    <option>Sequence name</option>
+                                    <option>Sequence clade</option>
+                                    <option>Sequence length</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Submit button -->
+                        <div class="col-md-offset-2 col-md-2">
+                            <button type="submit" class="btn btn-default form-control">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <span style= "font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New; font-size: 16px" >
+                            symPortal<span style="font-size:12px">db</span>
+                        </span>
+                        ITS2 sequence query: Results
+                </div>
+                <div class="panel-body">
+                    <!-- This will have place holders for each of the queries -->
+
+                    <p>
+                        <strong style="font-size:105%;">Current query: </strong>
+                        <strong>name:</strong> {{queryDictPrint.seq_namePrint}},
+                        <strong>clade:</strong> {{queryDictPrint.seq_cladePrint}},
+                        <strong>length:</strong> {{queryDictPrint.seq_lengthPrint}},
+                        <strong>occurrence:</strong> {{queryDictPrint.seq_occurrencePrint}}
+                    </p>
+                    <table class="table table-hover table-condensed">
+                        <tr>
+                            <th>Name</th>
+                            <th>Clade</th>
+                            <th>Length</th>
+                            <th>Occurance</th>
+                            <th>.fasta</th>
+                        </tr>
+                        {% for seq in querySet %}
+                        <tr>
+                            <td>{{seq.name}}</td>
+                            <td>{{seq.clade}}</td>
+                            <td>{{seq.length}}</td>
+                            <td>{{seq.occurrence}}</td>
+                            <td><button type="button" class="btn btn-link" id="{{seq.id}}" data-toggle="modal" data-target="#seqModal" data-seq_id="{{seq.id}}">details</button></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal code that will interact with Jquery and AJAX requests -->
+<div class="modal fade" id="seqModal" tabindex="-1" role="dialog" aria-labelledby="seqModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="exampleModalLabel">Sequence</h4>
+      </div>
+      <div class="modal-body">
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="fasta-title"></div>
+            <div class="fasta-sequence"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
