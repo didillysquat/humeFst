@@ -1,4 +1,9 @@
 {% extends "dbApp/header.html" %}
+{% block title %}
+<title>seqQuery</title>
+
+{% endblock %}
+{% include "links.html" %}
 {% block content %}
     <!-- This will be a form that will allow us the user to submit a query to the database
     that will then return to the seqQueryResult page with the restuls of the query -->
@@ -89,6 +94,7 @@
             </div>
         </div>
     </div>
+
     <div class="row">
         <div class="col-md-6">
             <div class="panel panel-default">
@@ -129,6 +135,9 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="row">
+        <p id="testText">Let's see if this changes</p>
     </div>
 </div>
 

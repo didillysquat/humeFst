@@ -2,49 +2,13 @@
 <html lang="en">
 
 <head>
+	{% block title %}
 	<title>Harrison Kinsley</title>
-	<meta charset="utf-8" />
-	{% load staticfiles %}
-	<!--link rel="stylesheet" href="{% static 'dbApp/css/bootstrap.min.css' %}" type = "text/css"/-->
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-	<meta name="viewport" content = "width=device-width, initial-scale=1.0">
-	<script src="{% static 'dbApp/js/dbApp.js'%}"></script>
-	<style type="text/css">
-		html,
-		body {
-		  height:100%
-		}
-	</style>
-
-	<!-- This is the navbar -->
-	<nav class="nav navbar-default">
-		<div class="container-fluid">
-			<ul class="nav navbar-nav">
-				<li class="active"><a href="."><span style= "font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New; font-size: 20px" >symPortal</span></a></li>
-				<li class="dropdown">
-					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Query db<span class="caret"></span></a>
-					<ul class="dropdown-menu">
-						<li><a href="seqQuery">Seq query</a></li>
-						<li><a href="#">Sample query</a></li>
-						<li><a href="#">Data set query query</a></li>
-						<li><a href="#">Browse</a></li>
-					</ul>
-				</li>
-				<li class="dropdown">
-					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Analysis <span class="caret"></span></a>
-					<ul class="dropdown-menu">
-						<li><a href="#">New sample typing</a></li>
-						<li><a href="#">New biodiverisity analysis</a></li>
-					</ul>
-				</li>
-				<li><a href="#">Your data</a></li>
-			</ul>
-		</div>
-	</nav>
-
+	{% endblock %}
+	{% include "./includes/links.html" %}
+	{% include "./includes/navBar.html" %}
+	{% block additionalLinks %}
+	{% endblock %}
 
 </head>
 

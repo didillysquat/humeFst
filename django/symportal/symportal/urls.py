@@ -19,6 +19,6 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^dbApp/', include('dbApp.urls', namespace='dbApp')),
+    url(r'^symPortal/', include('dbApp.urls', namespace='dbApp')),
 
 ]

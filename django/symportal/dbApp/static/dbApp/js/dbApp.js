@@ -1,6 +1,6 @@
 $(document).ready(function() {
 
-
+$("#testText").text("Happy");
 
 
 
@@ -10,7 +10,7 @@ var button = $(event.relatedTarget); // Button that triggered the modal
 var seqId = button.data('seq_id'); // Extract info from data-* attributes
 var modal = $(this);
 //modal.find('.modal-title').text(seqId);
-    $("#testText").html(seqId);
+$("#testText").html(seqId);
     // Perople suggested putting the argument for dataType in the get method but that was making it difficult
     // to access what was being passes from python
     // I have now left this out and so when I pass the object it comes as a string

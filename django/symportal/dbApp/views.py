@@ -7,9 +7,18 @@ from django.core import serializers # this is what you use to json a query set
 
 
 
-def index(request):
+def home(request):
     methodtype = request.method
     return render(request, 'dbApp/home.html', {'method':methodtype})
+
+def summary(request):
+    methodtype = request.method
+    return render(request, 'dbApp/summary.html', {'method':methodtype})
+
+
+def bioDivAnalysis(request):
+    return render(request, 'dbApp/bioDivAnalysis.html', {'checker': 'This is the bioDivAnalysis page'})
+
 
 def seqQuery(request):
 

@@ -1,0 +1,158 @@
+{% extends "dbApp/header.html" %}
+{% block title %}
+<title>dataSetAnalysis</title>
+{% endblock %}
+{% block additionalLinks %}
+<link rel="stylesheet" type="text/css" href="./css/fileInput.css">
+{% load staticfiles %}
+<script src="{% static 'dbApp/js/fileInput.js'%}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="panel panel-default">
+            <div class = "panel-body">
+                <div class="col-md-4">
+                    <h3>Multi-sample typing analysis</h3>
+                    <p>Use symPortal to analyse a data set containing one or more samples.
+                        Every sample should be composed of multiple NGS ITS2 amplicon data reads (ideally > 300 reads).</p>
+                    Data can be input as either:
+                    <div>
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subFastQ">
+                          <span style="text-decoration:underline; color:#333333">A single FastQ file</span>
+                        </button>
+
+                        <div id="subFastQ" class="collapse">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subFastaCount">
+                          <span style="text-decoration:underline; color:#333333">Paired .fasta and count files</span>
+                        </button>
+
+                        <div id="subFastaCount" class="collapse">
+                            <div class="panel panel-default" style="padding: 0 0 0 0;">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                            <div style="text-align: center;">
+                                AND
+                            </div>
+
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    Data sets may be run in one of three modes:
+                    <div>
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subOne">
+                          <span style="text-decoration:underline; color:#333333">Stand-alone: small number of samples</span>
+                        </button>
+
+                        <div id="subOne" class="collapse">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subTwo">
+                          <span style="text-decoration:underline; color:#333333">Stand-alone: large number of samples</span>
+                        </button>
+
+                        <div id="subTwo" class="collapse">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subThree">
+                          <span style="text-decoration:underline; color:#333333"><span style= "font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New; font-size: 14px" >symPortaldb</span> integrated analysis</span>
+                        </button>
+
+                        <div id="subThree" class="collapse">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    Content here
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- These will be our inputs which will be validated live perhaps -->
+                <div class="col-md-4">
+                    <h3>Data input and validation</h3>
+                    <div class="form-group">
+                        <label for="dataType" >Select data type</label>
+                        <select class="form-control" name="dataType" id="dataType">
+                            <option selected="selected">ALL</option>
+                            <option>fastQ</option>
+                            <option>.fasta/count table</option>
+                        </select>
+                    </div>
+
+
+                    <form method="post" enctype="multipart/form-data" style="">
+                        {% csrf_token %}
+                        <div>
+                            <label>Upload and validate fastQ</label>
+                        </div>
+                        <div class="input=group">
+                            <span type="button" class="btn btn-default btn-xs">Browse</span><input type="file" name="sentFile" style="display:none"/>
+                            <span>No file selected</span>
+                        </div>
+                        <button type="submit" class="btn btn-default btn-xs" disabled>Upload/Validate</button>
+                    </form>
+                    <!-- TODO finish clearing up these buttons i.e. use standard file inputs -->
+                    <!-- TODO then write java to change the hidden states of them dependent on the selection -->
+                    <!-- TODO Then write python to open the data from the given directory and produce summary data -->
+                    <!-- TODO Send this summary data back to the website and display in the explanation on the left box -->
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div>
+                            <label>Upload and validate: </label>
+                            <label>.fasta </label>
+                            <input type="file" name="sentFile"/>
+                            <label>count table</label>
+                            <input type="file" name="sentFile"/>
+                        </div>
+                        <button type="submit" class="btn btn-default btn-xs" disabled>Upload/Validate</button>
+                    </form>
+
+
+                </div>
+
+                <div class="col-md-4">
+                    <h3>Explanation of the left</h3>
+                    <label>.fasta file</label>
+                    <div class="well well-sm">
+                        >This is a fastaName/n Here is the sequence"
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

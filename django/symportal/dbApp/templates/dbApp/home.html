@@ -1,10 +1,21 @@
-{% extends "dbApp/header.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block content %}
+<head>
+	{% load staticfiles %}
+	{% include "./includes/links.html" %}
+	<script src="{% static 'dbApp/js/home.js'%}"></script>
+	<title>symPortal</title>
+</head>
 
-<p>Hey, welcome to symPorter</p>
-<p>This is the homepage</p>
-<p>{{method}}</p>
+<body>
+<div id="wrapper">
+	<div class="row">
+		<span id="symPortalText" style= "font-size: 48px; font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New;" >symPortal</span>
+	</div>
+	<div class="row" style="text-align: center; display: none;" id="hiddenSub">
+		<a href="" target="blank" style="color: #303030" id="sub1">logIn</a> | <a href="#" target="blank" style="color: #303030" id="sub2">signUp</a> | <a href="summary" target="blank" style="color: #303030" id="sub3">continueAsGuest</a>
+	</div>
+</div>
 
-
-{% endblock %}
+</body>
