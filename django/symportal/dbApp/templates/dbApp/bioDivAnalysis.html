@@ -2,11 +2,7 @@
 {% block title %}
 <title>dataSetAnalysis</title>
 {% endblock %}
-{% block additionalLinks %}
-<link rel="stylesheet" type="text/css" href="./css/fileInput.css">
-{% load staticfiles %}
-<script src="{% static 'dbApp/js/fileInput.js'%}"></script>
-{% endblock %}
+
 
 {% block content %}
 <div class="container-fluid">
@@ -16,7 +12,7 @@
                 <div class="col-md-4">
                     <h3>Multi-sample typing analysis</h3>
                     <p>Use symPortal to analyse a data set containing one or more samples.
-                        Every sample should be composed of multiple NGS ITS2 amplicon data reads (ideally > 300 reads).</p>
+                        Every sample should be composed of multiple NGS ITS2 amplicon sequence reads (ideally > 300 reads).</p>
                     Data can be input as either:
                     <div>
                         <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#subFastQ">
@@ -102,42 +98,49 @@
                 <!-- These will be our inputs which will be validated live perhaps -->
                 <div class="col-md-4">
                     <h3>Data input and validation</h3>
-                    <div class="form-group">
-                        <label for="dataType" >Select data type</label>
-                        <select class="form-control" name="dataType" id="dataType">
-                            <option selected="selected">ALL</option>
-                            <option>fastQ</option>
-                            <option>.fasta/count table</option>
-                        </select>
-                    </div>
 
-
-                    <form method="post" enctype="multipart/form-data" style="">
-                        {% csrf_token %}
-                        <div>
-                            <label>Upload and validate fastQ</label>
-                        </div>
-                        <div class="input=group">
-                            <span type="button" class="btn btn-default btn-xs">Browse</span><input type="file" name="sentFile" style="display:none"/>
-                            <span>No file selected</span>
-                        </div>
-                        <button type="submit" class="btn btn-default btn-xs" disabled>Upload/Validate</button>
-                    </form>
                     <!-- TODO finish clearing up these buttons i.e. use standard file inputs -->
                     <!-- TODO then write java to change the hidden states of them dependent on the selection -->
                     <!-- TODO Then write python to open the data from the given directory and produce summary data -->
                     <!-- TODO Send this summary data back to the website and display in the explanation on the left box -->
-                    <form method="post" enctype="multipart/form-data">
+
+
+                    <form id="validateForm" action="{% url 'dbApp:dataInputValidation' %}"  method="post" enctype="multipart/form-data">
                         {% csrf_token %}
-                        <div>
-                            <label>Upload and validate: </label>
-                            <label>.fasta </label>
-                            <input type="file" name="sentFile"/>
-                            <label>count table</label>
-                            <input type="file" name="sentFile"/>
+                        <div class="form-group">
+                            <select class="form-control" name="dataType" id="dataType">
+                                <option  value="">Select data type</option>
+                                <option id="selectFastQ" value="fastQ">fastQ</option>
+                                <option id="selectFasta" value="fasta">.fasta/count table</option>
+                            </select>
                         </div>
-                        <button type="submit" class="btn btn-default btn-xs" disabled>Upload/Validate</button>
+
+                        <!-- IF FASTQ CHOSEN -->
+                        <div id="fastQSubmit"  class="form-group" style="display: none;">
+
+                                <label>fastQ</label>
+                                <input id="fastQFileInput" type="file" name="fastQFile"/>
+
+                        </div>
+
+                        <!-- IF FASTA/COUNT CHOSEN -->
+                        <div id="fastaSubmit" style="display: none;">
+                            <div class="form-group">
+                                <label>.fasta </label>
+                                <input id="fastaFileInput" type="file" name="fastaFile"/>
+                            </div>
+                            <div class="form-group">
+                                <label  >count table</label>
+                                <input id="countFileInput" type="file" name="countFile"/>
+                            </div>
+                        </div>
+
+
+                        <button id="fileValidate" type="submit" class="btn btn-primary" style="display: none;">Validate</button>
+
                     </form>
+
+
 
 
                 </div>
@@ -154,5 +157,10 @@
         </div>
 
     </div>
+    <p id="testText">someText</p>
 </div>
+{% endblock %}
+{% block additionalLinks %}
+{% load staticfiles %}
+<script src="{% static 'dbApp/js/bioDivAnalysis.js'%}"></script>
 {% endblock %}

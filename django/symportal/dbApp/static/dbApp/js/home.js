@@ -1,4 +1,4 @@
-$(document).ready(function () {
+
 
     var symPorTxt = "symPortal";
     var symi = 0;
@@ -28,7 +28,7 @@ $(document).ready(function () {
     $("#hiddenSub").attr("style", "text-align: center; display: block;");
     }
 
-});
+
 
 /* var subOneTyper = setInterval(function () {
         if (sub1Count != subOneTxt.length) {

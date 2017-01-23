@@ -161,6 +161,10 @@
   </div>
 </div>
 
+{% block additionalLinks %}
+{% load staticfiles %}
+<script src="{% static 'dbApp/js/dbApp.js'%}"></script>
 
+{% endblock %}
 
 {% endblock %}

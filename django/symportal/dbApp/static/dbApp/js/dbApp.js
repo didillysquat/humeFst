@@ -1,8 +1,4 @@
-$(document).ready(function() {
-
 $("#testText").text("Happy");
-
-
 
 
 $('#seqModal').on('show.bs.modal', function (event) {
@@ -90,5 +86,5 @@ JavaScript
 
 
 
-});
+
 

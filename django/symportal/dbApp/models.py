@@ -9,3 +9,11 @@ class its2Seq(models.Model):
 
     def __str__(self):
         return self.name
+
+class dataSubmission(models.Model):
+
+    submissionType_choices = (('fasta', 'fasta'),('fastQ', 'fastQ'))
+    submissionType = models.CharField(max_length=5, choices=submissionType_choices)
+    submittingUser = models.CharField(max_length=30, default='Bob')
+    submittedDataRaw = models.FileField()
+
